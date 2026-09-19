@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
-import Backdrop from './Backdrop.jsx';
-import Planet from './Planet.jsx';
-import Stars from './Stars.jsx';
-import Meteor from './Meteor.jsx';
-import GlassCards from './GlassCards.jsx';
+import FirstFrame from './FirstFrame';
+import Backdrop from './Backdrop';
+import Planet from './Planet';
+import Stars from './Stars';
+import Meteor from './Meteor';
+import GlassCards from './GlassCards';
+import type { SceneLayout } from '../types';
 
 /* Сцена в координатах страницы: X вправо, Y вверх, 1 единица = 1 CSS-пиксель, левый верхний угол
    канваса — (0, 0). Камера ортографическая, поэтому меши встают ровно на свои DOM-места.
@@ -22,7 +24,7 @@ function PixelCamera() {
 
 /* Рендер по требованию: 30 кадров/с вместо 60, пауза вне экрана (в фоновой вкладке rAF сам встаёт).
    При выключенной анимации тикер не работает — кадр рисуется только когда что-то изменилось. */
-function Ticker({ enabled }) {
+function Ticker({ enabled }: { enabled: boolean }) {
   const invalidate = useThree(s => s.invalidate);
   const gl = useThree(s => s.gl);
 
@@ -30,13 +32,13 @@ function Ticker({ enabled }) {
     invalidate();
     if (!enabled) return;
     let raf = 0, last = 0, onScreen = true;
-    const tick = now => {
+    const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       if (!onScreen || now - last < 33) return;
       last = now;
       invalidate();
     };
-    const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; });
+    const io = new IntersectionObserver(([entry]) => { onScreen = entry?.isIntersecting ?? true; });
     io.observe(gl.domElement);
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); io.disconnect(); };
@@ -46,13 +48,21 @@ function Ticker({ enabled }) {
 }
 
 /* Любое изменение раскладки или режима — повод перерисовать кадр, даже если анимация выключена */
-function Redraw({ signal }) {
+function Redraw({ signal }: { signal: unknown }) {
   const invalidate = useThree(s => s.invalidate);
   useEffect(() => { invalidate(); }, [signal, invalidate]);
   return null;
 }
 
-export default function Sky({ layout, motion, glass }) {
+interface SkyProps {
+  layout: SceneLayout;
+  motion: boolean;
+  glass: boolean;
+  onReady: () => void;
+  onGlassReady: () => void;
+}
+
+export default function Sky({ layout, motion, glass, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
@@ -62,12 +72,13 @@ export default function Sky({ layout, motion, glass }) {
         <PixelCamera />
         <Ticker enabled={motion} />
         <Redraw signal={layout} />
+        <FirstFrame onReady={onReady} />
 
         <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} />
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
         <Planet planet={planet} fade={fade} motion={motion} />
         <Meteor width={width} planet={planet} motion={motion} />
-        {glass && <GlassCards cards={cards} motion={motion} />}
+        {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
       </Canvas>
     </div>
   );

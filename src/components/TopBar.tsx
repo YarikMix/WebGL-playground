@@ -1,12 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-export default function TopBar({ query, onQuery, onProfile }) {
-  const input = useRef(null);
+interface TopBarProps {
+  query: string;
+  onQuery: (value: string) => void;
+  onProfile: () => void;
+}
+
+export default function TopBar({ query, onQuery, onProfile }: TopBarProps) {
+  const input = useRef<HTMLInputElement>(null);
 
   // «/» переводит фокус в поиск, как в большинстве инструментов для разработчиков
   useEffect(() => {
-    const onKey = e => {
-      if (e.key === '/' && document.activeElement !== input.current) { e.preventDefault(); input.current.focus(); }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement !== input.current) { e.preventDefault(); input.current?.focus(); }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

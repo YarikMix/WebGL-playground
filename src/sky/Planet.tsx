@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { NOISE, OUTPUT, PALETTE } from './glsl.js';
+import { NOISE, OUTPUT, PALETTE } from './glsl';
+import type { PlanetGeometry } from '../types';
 
 /* В ветке webgl сфера была аналитической: нормаль восстанавливалась из координат пикселя,
    а вращение подделывалось поворотом координат шума. Здесь это настоящая геометрия:
@@ -81,12 +82,19 @@ void main() {
   ${OUTPUT}
 }`;
 
-export default function Planet({ planet, fade, motion }) {
-  const mesh = useRef(null), material = useRef(null);
+interface PlanetProps {
+  planet: PlanetGeometry;
+  fade: [number, number];
+  motion: boolean;
+}
+
+export default function Planet({ planet, fade, motion }: PlanetProps) {
+  const mesh = useRef<THREE.Mesh>(null), material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 }, uRadius: { value: 0 }, uFade: { value: new THREE.Vector2() } }), []);
 
   useFrame((state, delta) => {
-    const u = material.current.uniforms;      // только так: см. примечание про uniform-ы в glsl.js
+    const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
+    if (!u || !mesh.current) return;
     u.uRadius.value = planet.R;
     u.uFade.value.set(fade[0], fade[1]);
     if (!motion) return;

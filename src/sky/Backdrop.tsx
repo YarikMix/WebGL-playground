@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { OUTPUT, PALETTE } from './glsl.js';
+import { OUTPUT, PALETTE } from './glsl';
+import type { PlanetGeometry, SceneLayout } from '../types';
 
 /* Задний план одной плоскостью: цвет космоса, свечение за заголовком и ореол атмосферы над кромкой.
    Плоскость непрозрачная — так она попадает в буфер преломления three.js, и стёкла карточек
@@ -42,8 +43,16 @@ void main() {
   ${OUTPUT}
 }`;
 
-export default function Backdrop({ width, height, planet, glow, fade }) {
-  const material = useRef(null);
+interface BackdropProps {
+  width: number;
+  height: number;
+  planet: PlanetGeometry;
+  glow: SceneLayout['glow'];
+  fade: [number, number];
+}
+
+export default function Backdrop({ width, height, planet, glow, fade }: BackdropProps) {
+  const material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uCenter: { value: new THREE.Vector2() },
     uRadius: { value: 0 },
@@ -53,7 +62,8 @@ export default function Backdrop({ width, height, planet, glow, fade }) {
   }), []);
 
   useFrame(() => {
-    const u = material.current.uniforms;      // только так: см. примечание про uniform-ы в glsl.js
+    const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
+    if (!u) return;
     u.uCenter.value.set(planet.cx, planet.cy);
     u.uRadius.value = planet.R;
     u.uGlow.value.set(glow.x, glow.y);

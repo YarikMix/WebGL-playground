@@ -1,7 +1,17 @@
-import { plural } from '../data.js';
+import type { RefObject } from 'react';
+import { plural } from '../data';
 
-/* heroRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
-export default function Hero({ heroRef, limbRef, total, running, onCreate, onUpload }) {
+interface HeroProps {
+  /** heroRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
+  heroRef: RefObject<HTMLElement | null>;
+  limbRef: RefObject<HTMLDivElement | null>;
+  total: number;
+  running: number;
+  onCreate: () => void;
+  onUpload: () => void;
+}
+
+export default function Hero({ heroRef, limbRef, total, running, onCreate, onUpload }: HeroProps) {
   return (
     <section className="hero wrap" ref={heroRef}>
       <div className="hero-row">
@@ -28,6 +38,7 @@ export default function Hero({ heroRef, limbRef, total, running, onCreate, onUpl
           <button className="btn btn-ghost" type="button" onClick={onUpload}>Загрузить .ipynb</button>
         </div>
       </div>
+      {/* CSS-диск планеты: фон, пока сцена грузится (и если не загрузится), и источник её геометрии */}
       <div className="limb" ref={limbRef} aria-hidden="true" />
     </section>
   );

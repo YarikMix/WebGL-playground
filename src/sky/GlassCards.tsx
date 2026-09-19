@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, MeshTransmissionMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
+import FirstFrame from './FirstFrame';
+import type { CardRect } from '../types';
 
 /* Liquid glass средствами drei, без собственного шейдера.
    На месте каждой DOM-карточки стоит настоящая 3D-плита со скруглёнными рёбрами, а
@@ -18,8 +20,8 @@ const BEVEL = 8;     // ширина фаски. У RoundedBox из drei она 
 const DEPTH = 28;
 
 /* Плита: контур со скруглением (RADIUS − BEVEL), выдавленный с фаской BEVEL, — снаружи выходит ровно RADIUS */
-function useSlabGeometry(w, h) {
-  return useMemo(() => {
+function useSlabGeometry(w: number, h: number): THREE.BufferGeometry {
+  const geometry = useMemo(() => {
     const iw = w - 2 * BEVEL, ih = h - 2 * BEVEL, r = RADIUS - BEVEL;
     const shape = new THREE.Shape();
     shape.absarc(r, r, r, -Math.PI / 2, -Math.PI, true);
@@ -34,11 +36,12 @@ function useSlabGeometry(w, h) {
     extruded.dispose();
     return smooth;
   }, [w, h]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return geometry;
 }
 
-function Slab({ card }) {
+function Slab({ card }: { card: CardRect }) {
   const geometry = useSlabGeometry(card.w, card.h);
-  useEffect(() => () => geometry.dispose(), [geometry]);
   return (
     <mesh geometry={geometry} position={[card.x, -card.y, DEPTH / 2 + 20]}>
       <MeshTransmissionMaterial
@@ -57,14 +60,14 @@ function Slab({ card }) {
   );
 }
 
-function PointerLight({ motion }) {
-  const light = useRef(null);
+function PointerLight({ motion }: { motion: boolean }) {
+  const light = useRef<THREE.PointLight>(null);
   const target = useRef({ x: -2000, y: 2000 });     // без курсора свет стоит слева сверху
   const gl = useThree(s => s.gl);
   const invalidate = useThree(s => s.invalidate);
 
   useEffect(() => {
-    const move = e => {
+    const move = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
       const r = gl.domElement.getBoundingClientRect();
       target.current = { x: e.clientX - r.left, y: -(e.clientY - r.top) };
@@ -75,6 +78,7 @@ function PointerLight({ motion }) {
   }, [gl, invalidate]);
 
   useFrame(() => {
+    if (!light.current) return;
     const p = light.current.position, k = motion ? 0.18 : 1;   // инерция только когда идёт анимация
     p.x += (target.current.x - p.x) * k;
     p.y += (target.current.y - p.y) * k;
@@ -84,7 +88,14 @@ function PointerLight({ motion }) {
   return <pointLight ref={light} position={[-2000, 2000, 260]} intensity={5} decay={0} color="#efe9ff" />;
 }
 
-export default function GlassCards({ cards, motion }) {
+interface GlassCardsProps {
+  cards: CardRect[];
+  motion: boolean;
+  /** первый кадр со стёклами на экране — DOM-карточки можно делать прозрачными */
+  onReady: () => void;
+}
+
+export default function GlassCards({ cards, motion, onReady }: GlassCardsProps) {
   return (
     <>
       {/* Окружение рисуется один раз из световых панелей — файлов HDR не нужно.
@@ -100,6 +111,7 @@ export default function GlassCards({ cards, motion }) {
       </Environment>
       <PointerLight motion={motion} />
       {cards.map((card, i) => <Slab key={i} card={card} />)}
+      {cards.length > 0 && <FirstFrame onReady={onReady} />}
     </>
   );
 }

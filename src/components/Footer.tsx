@@ -1,9 +1,18 @@
-const CARD_MODES = [
+import type { CardsMode } from '../types';
+
+const CARD_MODES: { id: CardsMode; label: string }[] = [
   { id: 'flat', label: 'Имитация' },
   { id: 'liquid', label: 'Liquid glass' },
 ];
 
-export default function Footer({ cards, onCards, motion, onMotion }) {
+interface FooterProps {
+  cards: CardsMode;
+  onCards: (mode: CardsMode) => void;
+  motion: boolean;
+  onMotion: (on: boolean) => void;
+}
+
+export default function Footer({ cards, onCards, motion, onMotion }: FooterProps) {
   return (
     <div className="foot">
       <p className="note">Прототип главной. Названия блокнотов, рантаймы и квота GPU — примеры, не реальные данные.</p>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import type { PlanetGeometry } from '../types';
 
 /* Звёзды — один объект Points. Они заданы в полярных координатах вокруг центра планеты,
    а группа с ними вращается вокруг этого центра: небо дрейфует вдоль горизонта. */
@@ -36,7 +37,7 @@ void main() {
 }`;
 
 // генератор с фиксированным зерном: небо одинаковое при каждом открытии страницы
-function seeded(seed) {
+function seeded(seed: number): () => number {
   return () => {
     seed |= 0; seed = seed + 0x6D2B79F5 | 0;
     let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
@@ -45,13 +46,20 @@ function seeded(seed) {
   };
 }
 
-export default function Stars({ width, planet, fade, motion }) {
-  const group = useRef(null);
+interface StarsProps {
+  width: number;
+  planet: PlanetGeometry;
+  fade: [number, number];
+  motion: boolean;
+}
+
+export default function Stars({ width, planet, fade, motion }: StarsProps) {
+  const group = useRef<THREE.Group>(null), material = useRef<THREE.ShaderMaterial>(null);
   const dpr = useThree(s => s.viewport.dpr);
+  const { cx, cy, R } = planet;
 
   const geometry = useMemo(() => {
     const rnd = seeded(20260920);
-    const { cx, cy, R } = planet;
     const rMax = Math.hypot(Math.max(cx, width - cx), cy);
     const r0 = (R + 3) ** 2, span = rMax ** 2 - r0;
     const count = Math.round(Math.PI * span / 4600);        // плотность как в версии на Canvas 2D
@@ -73,15 +81,14 @@ export default function Stars({ width, planet, fade, motion }) {
     g.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 2));
     g.setAttribute('aTint', new THREE.BufferAttribute(tint, 1));
     return g;
-  }, [planet.cx, planet.cy, planet.R, width]);   // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [cx, cy, R, width]);
   useEffect(() => () => geometry.dispose(), [geometry]);   // при resize геометрия пересоздаётся — старую освобождаем
 
-  const material = useRef(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 }, uDpr: { value: 1 }, uFade: { value: new THREE.Vector2() } }), []);
 
   useFrame((state, delta) => {
-    const u = material.current.uniforms;      // только так: см. примечание про uniform-ы в glsl.js
+    const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
+    if (!u || !group.current) return;
     u.uDpr.value = dpr;
     u.uFade.value.set(fade[0], fade[1]);
     if (!motion) return;
@@ -91,7 +98,7 @@ export default function Stars({ width, planet, fade, motion }) {
 
   // z — плоскость центра планеты: звёзды, оказавшиеся за диском, закрывает сама сфера через тест глубины
   return (
-    <group ref={group} position={[planet.cx, -planet.cy, -planet.R - 100]}>
+    <group ref={group} position={[cx, -cy, -R - 100]}>
       <points geometry={geometry} frustumCulled={false}>
         <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
           transparent depthWrite={false} blending={THREE.AdditiveBlending} />

@@ -1,11 +1,18 @@
-import { useMemo } from 'react';
-import { plural, tokenize } from '../data.js';
+import { useMemo, type PointerEvent, type RefObject } from 'react';
+import { plural, tokenize } from '../data';
+import type { Notebook } from '../types';
 
-function Card({ notebook: n, glass, onOpen }) {
+interface CardProps {
+  notebook: Notebook;
+  glass: boolean;
+  onOpen: (notebook: Notebook) => void;
+}
+
+function Card({ notebook: n, glass, onOpen }: CardProps) {
   const tokens = useMemo(() => tokenize(n.code), [n.code]);
 
   // свечение под курсором: координаты уходят в CSS-переменные, React в этом не участвует
-  const track = e => {
+  const track = (e: PointerEvent<HTMLAnchorElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
     e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
@@ -32,7 +39,15 @@ function Card({ notebook: n, glass, onOpen }) {
   );
 }
 
-export default function NotebookGrid({ gridRef, notebooks, glass, onOpen }) {
+interface NotebookGridProps {
+  gridRef: RefObject<HTMLDivElement | null>;
+  notebooks: Notebook[];
+  /** стекло рисует сцена — карточка становится прозрачной */
+  glass: boolean;
+  onOpen: (notebook: Notebook) => void;
+}
+
+export default function NotebookGrid({ gridRef, notebooks, glass, onOpen }: NotebookGridProps) {
   if (!notebooks.length) {
     return (
       <div className="empty">

@@ -30,11 +30,15 @@ button, input { font: inherit; color: inherit; }
 
 .page { position: relative; isolation: isolate; overflow: clip; min-height: 100vh; }
 .wrap { max-width: 1120px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 32px); }
-/* WebGL-канвас непрозрачный и рисует весь фон сам. Пока шейдер не собрался (или WebGL нет),
-   он скрыт и работает статичный CSS-фон: свечение hero::before и диск .limb. */
-.stars { display: none; position: absolute; z-index: -2; top: 0; left: 0; width: 100%; height: 900px; pointer-events: none; }
-.webgl .stars { display: block; }
-.webgl .limb, .webgl .hero::before { visibility: hidden; }  /* .limb остаётся в раскладке: из него берётся геометрия планеты */
+/* Сцена three.js грузится отдельным чанком. Пока его нет (или если WebGL недоступен), фон — чистый CSS:
+   свечение .hero::before и диск .limb. Когда сцена отрисовала первый кадр, .page получает класс .webgl:
+   канвас проявляется, CSS-фон гаснет. Канвас нельзя прятать через display: none — с нулевым размером
+   R3F не рисует кадры, и сигнал готовности не пришёл бы никогда. */
+.stars { position: absolute; z-index: -2; top: 0; left: 0; width: 100%; height: 900px; pointer-events: none; opacity: 0; transition: opacity .7s ease; }
+.webgl .stars { opacity: 1; }
+.limb, .hero::before { transition: opacity .7s ease, visibility 0s linear .7s; }
+.webgl .limb, .webgl .hero::before { opacity: 0; visibility: hidden; }  /* .limb остаётся в раскладке: из него берётся геометрия планеты */
+@media (prefers-reduced-motion: reduce) { .stars, .limb, .hero::before { transition: none; } }
 
 /* ── Верхняя панель: единственное место с настоящим blur ── */
 .top { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 10; margin-top: 12px; }

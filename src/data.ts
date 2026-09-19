@@ -1,6 +1,7 @@
 /* Данные-примеры и мелкие помощники интерфейса. */
+import type { CodeToken, Notebook, NotebookFilter } from './types';
 
-export const initialNotebooks = [
+export const initialNotebooks: Notebook[] = [
   { id: 1, title: 'Fine-tune ruBERT на отзывах', cells: 21, edited: '3 мин назад', run: '38 мин', accel: 'A100',
     code: 'from transformers import Trainer\n\ntrainer = Trainer(model=model, args=args,\n    train_dataset=ds["train"])\ntrainer.train()  # эпоха 2 из 3' },
   { id: 2, title: 'Классификация галактик · CNN', cells: 34, edited: '12 мин назад', run: '1 ч 12 мин', accel: 'T4',
@@ -19,23 +20,23 @@ export const initialNotebooks = [
     code: '# TODO: проверить гипотезу про выбросы\nimport pandas as pd\n\ndf = pd.read_csv("sample.csv")\ndf.describe()' },
 ];
 
-export const filters = [
+export const filters: NotebookFilter[] = [
   { id: 'all', label: 'Все', test: () => true },
   { id: 'mine', label: 'Мои', test: n => !n.owner },
   { id: 'shared', label: 'Доступные мне', test: n => !!n.owner },
   { id: 'running', label: 'Работают', test: n => !!n.run },
 ];
 
-export const plural = (n, one, few, many) => {
+export const plural = (n: number, one: string, few: string, many: string): string => {
   const a = n % 10, b = n % 100;
   return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
 };
 
 const TOKEN = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(import|from|as|def|for|in|return|with|if|else|class|lambda|True|False|None)\b|\b(\d+(?:\.\d+)?)\b/gm;
 
-/* Код → список кусков { text, cls } для подсветки: c — комментарий, s — строка, k — ключевое слово, n — число */
-export function tokenize(code) {
-  const parts = [];
+/* Код → список кусков для подсветки */
+export function tokenize(code: string): CodeToken[] {
+  const parts: CodeToken[] = [];
   let last = 0;
   for (const m of code.matchAll(TOKEN)) {
     if (m.index > last) parts.push({ text: code.slice(last, m.index) });
@@ -47,12 +48,12 @@ export function tokenize(code) {
 }
 
 /* Настройка, которая переживает перезагрузку; хранилище может быть недоступно */
-export function loadSetting(key, allowed, fallback) {
+export function loadSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
     const saved = localStorage.getItem(key);
-    return allowed.includes(saved) ? saved : fallback;
+    return (allowed as readonly string[]).includes(saved ?? '') ? (saved as T) : fallback;
   } catch { return fallback; }
 }
-export function saveSetting(key, value) {
-  try { localStorage.setItem(key, value); } catch {}
+export function saveSetting(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* приватный режим или заблокированное хранилище */ }
 }
