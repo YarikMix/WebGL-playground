@@ -20,6 +20,7 @@ uniform vec2  u_glow;      // центр свечения за заголовк�
 uniform vec2  u_glowSize;
 uniform float u_time;
 uniform vec4  u_meteor;    // xy — голова, z — яркость, w — угол полёта
+uniform float u_style;     // поверхность: 0 — чистая атмосфера, 1 — газовый гигант, 2 — облака
 
 const vec3 SPACE  = vec3(0.0196, 0.0118, 0.0588);   // #05030f, совпадает с фоном страницы
 const vec3 VIOLET = vec3(0.545, 0.424, 1.0);
@@ -112,6 +113,7 @@ vec3 sky(vec2 p, vec2 d, float dist, float sunSide) {
 float cityDots(vec3 q) {
   vec3 u = q * (u_radius / (9.0 * u_dpr));
   vec3 id = floor(u);
+  if (hash13(id + 3.3) > 0.4) return 0.0;              // большинство ячеек пустые, иначе проступает решётка
   vec3 pos = 0.3 + 0.4 * vec3(hash13(id), hash13(id + 19.19), hash13(id + 47.77));
   vec3 off = (fract(u) - pos) / 0.15;
   return (0.4 + 0.6 * hash13(id + 5.5)) * exp(-dot(off, off));
@@ -122,21 +124,51 @@ vec3 planet(vec2 d, float dist, float sunSide) {
   vec3 n = vec3(d.x, -d.y, sqrt(max((R - dist) * (R + dist), 0.0))) / R;
   vec3 q = rotate(n, AXIS, u_time * 0.0085);
 
-  float land   = smoothstep(0.50, 0.57, fbm(q * 5.0 + 4.0));
-  float clouds = smoothstep(0.52, 0.72, fbm(q * 9.0 + vec3(0.0, u_time * 0.0015, 20.0)));
+  /* Поверхность — три варианта на выбор (u_style):
+     land  — маска суши, на ней горят ночные огни;
+     cover — облачность, гасит огни и чуть светится ночью. */
+  float land = 0.0, cover = 0.0;
+  vec3 surface;
+
+  if (u_style < 0.5) {
+    /* 0. Чистая атмосфера: ровный цвет, вращение читается только по огням и звёздам */
+    land = smoothstep(0.50, 0.57, fbm(q * 5.0 + 4.0));
+    surface = vec3(0.07, 0.055, 0.19);
+
+  } else if (u_style < 1.5) {
+    /* 1. Газовый гигант: полосы по широте. Сама широта при вращении не меняется,
+          поэтому движение видно по турбулентности, которая сносит края полос. */
+    float lat = dot(n, AXIS) + 0.035 * (noise(q * 6.0) - 0.5) + 0.012 * (noise(q * 19.0) - 0.5);
+    float wide = noise(vec3(lat * 9.0, 1.7, 4.2));
+    float fine = 0.5 + 0.5 * sin(lat * 70.0 + 5.0 * wide);
+    float band = mix(wide, fine, 0.45);
+    surface = mix(vec3(0.05, 0.035, 0.16), vec3(0.40, 0.30, 0.62), smoothstep(0.25, 0.80, band));
+    surface = mix(surface, vec3(0.62, 0.42, 0.72), 0.5 * smoothstep(0.70, 0.92, wide));
+
+  } else {
+    /* 2. Облака: искажение координат шумом даёт волокна, узкий порог — резкие края */
+    land = smoothstep(0.50, 0.57, fbm(q * 5.0 + 4.0));
+    vec3 cq = q * 15.0 + vec3(0.0, u_time * 0.0015, 20.0);
+    cq += 0.8 * (vec3(noise(cq * 0.6 + 11.0), noise(cq * 0.6 + 23.0), noise(cq * 0.6 + 37.0)) - 0.5);
+    float systems = smoothstep(0.42, 0.62, fbm(q * 4.0 + 31.0));          // крупные облачные системы
+    cover = systems * smoothstep(0.44, 0.66, fbm(cq)) * (0.6 + 0.4 * noise(cq * 5.0));
+    surface = mix(vec3(0.035, 0.03, 0.13), vec3(0.12, 0.085, 0.24), land);
+    surface = mix(surface, vec3(0.55, 0.50, 0.82), cover * 0.9);
+  }
 
   /* Дневная сторона — узкий серп у кромки: солнце стоит сразу за горизонтом */
   float ndl = dot(n, SUN);
   float day = smoothstep(-0.03, 0.12, ndl);
-  vec3 surface = mix(vec3(0.035, 0.03, 0.13), vec3(0.12, 0.085, 0.24), land);
-  surface = mix(surface, vec3(0.50, 0.45, 0.78), clouds * 0.9);
   vec3 dayCol = surface * (0.40 + 2.4 * max(ndl, 0.0));
 
-  /* Ночная сторона: едва заметный рельеф и огни городов — только на суше и не под облаками */
-  float cluster = smoothstep(0.46, 0.62, fbm(q * 26.0 + 9.0));
-  float city    = land * cluster * (1.0 - clouds) * smoothstep(0.06, 0.30, n.z) * cityDots(q);
-  vec3 cityTint = mix(vec3(0.77, 0.69, 1.0), vec3(1.0, 0.80, 0.55), step(0.45, noise(q * 40.0 + 2.0)));
-  vec3 nightCol = SPACE + vec3(0.012, 0.010, 0.026) * land + vec3(0.030, 0.026, 0.055) * clouds + cityTint * city * 0.8;
+  /* Ночная сторона: едва заметная поверхность и огни городов — только на суше и не под облаками */
+  vec3 nightCol = SPACE + surface * 0.06;
+  if (land > 0.0) {
+    float cluster = smoothstep(0.46, 0.62, fbm(q * 26.0 + 9.0));
+    float city    = land * cluster * (1.0 - cover) * smoothstep(0.06, 0.30, n.z) * cityDots(q);
+    vec3 cityTint = mix(vec3(0.77, 0.69, 1.0), vec3(1.0, 0.80, 0.55), step(0.45, noise(q * 40.0 + 2.0)));
+    nightCol += cityTint * city * 0.8;
+  }
 
   vec3 col = mix(nightCol, dayCol, day);
 
@@ -175,6 +207,23 @@ void main() {
   let scale = 1, geo = null;
   let raf = 0, last = 0, onScreen = true, enabled = true, meteor = null, nextMeteor = 5;
 
+  /* Вариант поверхности планеты: кнопки #surface в подвале, выбор запоминается */
+  let style = 1;
+  try { const saved = localStorage.getItem('sky-surface'); if (saved !== null && [0, 1, 2].includes(Number(saved))) style = Number(saved); } catch {}
+  const surfaceBar = document.getElementById('surface');
+  const paintSurface = () => {
+    for (const b of surfaceBar.querySelectorAll('button')) b.setAttribute('aria-pressed', Number(b.dataset.style) === style);
+  };
+  surfaceBar.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    style = Number(b.dataset.style);
+    try { localStorage.setItem('sky-surface', String(style)); } catch {}
+    paintSurface();
+    draw(performance.now() / 1000);   // при выключенной анимации кадр иначе не обновится
+  });
+  paintSurface();
+
   function compile(type, src) {
     const sh = gl.createShader(type);
     gl.shaderSource(sh, src);
@@ -201,7 +250,7 @@ void main() {
       gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
       U = {};
-      for (const name of ['res', 'dpr', 'center', 'radius', 'glow', 'glowSize', 'time', 'meteor'])
+      for (const name of ['res', 'dpr', 'center', 'radius', 'glow', 'glowSize', 'time', 'meteor', 'style'])
         U[name] = gl.getUniformLocation(prog, 'u_' + name);
     } catch (err) {
       console.error('Sky: шейдер не собрался, остаётся CSS-фон.', err);
@@ -252,6 +301,7 @@ void main() {
   function draw(t) {
     if (!gl || !geo) return;
     gl.uniform1f(U.time, t);
+    gl.uniform1f(U.style, style);
     gl.uniform4fv(U.meteor, stepMeteor(t));
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
