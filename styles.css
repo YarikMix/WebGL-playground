@@ -30,7 +30,11 @@ button, input { font: inherit; color: inherit; }
 
 .page { position: relative; isolation: isolate; overflow: clip; min-height: 100vh; }
 .wrap { max-width: 1120px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 32px); }
-.stars { position: absolute; z-index: -1; top: 0; left: 0; width: 100%; height: 800px; pointer-events: none; }
+/* WebGL-канвас непрозрачный и рисует весь фон сам. Пока шейдер не собрался (или WebGL нет),
+   он скрыт и работает статичный CSS-фон: свечение hero::before и диск .limb. */
+.stars { display: none; position: absolute; z-index: -2; top: 0; left: 0; width: 100%; height: 900px; pointer-events: none; }
+.webgl .stars { display: block; }
+.webgl .limb, .webgl .hero::before { visibility: hidden; }  /* .limb остаётся в раскладке: из него берётся геометрия планеты */
 
 /* ── Верхняя панель: единственное место с настоящим blur ── */
 .top { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 10; margin-top: 12px; }
@@ -101,6 +105,11 @@ main { position: relative; padding-bottom: 24px; }
 .chip[aria-pressed="true"], .chip[aria-current="page"] { color: var(--ice); background: rgba(139, 108, 255, .18); border-color: rgba(160, 135, 255, .5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); }
 .chip span { font: 500 11.5px/1 var(--mono); color: var(--mist); }
 .sort { font-size: 13px; color: var(--mist); }
+/* Строка фильтров лежит на освещённом серпе планеты — подложка держит контраст текста */
+.webgl .bar .chip { background: rgba(8, 5, 24, .6); }
+.webgl .bar .chip:hover { background: rgba(20, 14, 48, .7); }
+.webgl .bar .chip[aria-pressed="true"] { background: linear-gradient(rgba(139, 108, 255, .24), rgba(139, 108, 255, .24)), rgba(8, 5, 24, .6); }
+.webgl .sort { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px; background: rgba(8, 5, 24, .6); }
 
 /* ── Карточки: стекло без blur — заливка + градиентный бордер ── */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 262px), 1fr)); gap: 16px; }

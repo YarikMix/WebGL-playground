@@ -51,7 +51,7 @@
     </div>
     <div class="limb" aria-hidden="true"></div>
   </section>
-  <!-- Канвас идёт после планеты: огни на её поверхности рисуются поверх диска -->
+  <!-- WebGL-канвас рисует весь фон: небо, планету и атмосферу. .limb выше — только источник геометрии -->
   <canvas class="stars" id="stars" aria-hidden="true"></canvas>
 
   <main class="wrap">
@@ -73,8 +73,8 @@
       <p class="note">Прототип главной. Названия блокнотов, рантаймы и квота GPU — примеры, не реальные данные.</p>
       <div class="foot-controls">
         <nav class="variants" aria-label="Реализация фона">
-          <a class="chip" href="./" aria-current="page">Canvas 2D</a>
-          <a class="chip" href="./webgl/">WebGL</a>
+          <a class="chip" href="../">Canvas 2D</a>
+          <a class="chip" href="./" aria-current="page">WebGL</a>
         </nav>
         <button class="chip" id="motion" type="button" aria-pressed="true">Анимация фона<span>вкл</span></button>
       </div>
