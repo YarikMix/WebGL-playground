@@ -128,6 +128,20 @@ main { position: relative; padding-bottom: 24px; }
 }
 .card:hover { transform: translateY(-2px); background: var(--glass-hi); }
 .card:hover::before { opacity: 1; }
+
+/* ── Три варианта стекла (класс на .page ставит sky.js) ──
+   cards-flat   — как выше: заливка 4% и градиентный бордер, без размытия;
+   cards-blur   — настоящий glassmorphism: браузер размывает всё, что под карточкой;
+   cards-liquid — стекло рисует WebGL-шейдер, а сама карточка прозрачна: остаются текст и hover-свечение.
+                  Класс .lq получают только карточки, которые шейдер действительно рисует. */
+.cards-blur .card {
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.cards-liquid .card.lq, .cards-liquid .card.lq:hover { background: transparent; transform: none; }  /* сдвиг разошёлся бы с прямоугольником в шейдере */
+.cards-liquid .card.lq::after { display: none; }
+.cards-liquid .card.lq .peek { background: rgba(3, 2, 12, .3); }
+.chip:disabled { opacity: .45; cursor: not-allowed; }
 .peek {
   height: 114px; padding: 14px 16px 0; overflow: hidden; white-space: pre;
   font: 400 12px/1.65 var(--mono); color: #cfc8f2; background: rgba(3, 2, 12, .5);

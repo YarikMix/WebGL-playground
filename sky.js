@@ -1,15 +1,22 @@
-/* Небо на чистом WebGL, без библиотек: один полноэкранный треугольник и один фрагментный шейдер.
-   Шейдер рисует всё сразу — свечение за заголовком, звёзды, метеор, планету с процедурной
-   поверхностью, облаками, терминатором, ночными огнями и атмосферой по кромке.
-   Геометрия (центр и радиус планеты) берётся из скрытого CSS-элемента .limb, поэтому фон
-   подстраивается под вёрстку. Если WebGL недоступен, остаётся статичный CSS-фон.
+/* Небо на чистом WebGL, без библиотек.
+
+   Проход 1 (SCENE) — один фрагментный шейдер рисует весь фон: свечение за заголовком, звёзды,
+   метеор, планету с облаками, терминатором, ночными огнями и атмосферой по кромке.
+
+   Проход 2 (GLASS) включается только в режиме карточек «Liquid glass»: сцена сначала уходит
+   в текстуру, а второй шейдер внутри прямоугольников карточек читает её со смещением —
+   преломление на фаске, матовое размытие, хроматическая аберрация, блик, идущий за курсором.
+   В остальных режимах сцена рисуется сразу на экран, второго прохода нет.
+
+   Геометрия берётся из вёрстки: центр и радиус планеты — из скрытого .limb, прямоугольники
+   стёкол — из карточек в #grid. Если WebGL недоступен, остаётся статичный CSS-фон.
    30 кадров/с, пауза вне экрана и в фоновой вкладке, статичный кадр при выключенной анимации. */
 window.Sky = (() => {
   const VERT = `
 attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
-  const FRAG = /* glsl */ `
+  const SCENE = /* glsl */ `
 precision highp float;
 
 uniform vec2  u_res;       // размер канваса, физические пиксели
@@ -18,9 +25,9 @@ uniform vec2  u_center;    // центр планеты (ось Y направл
 uniform float u_radius;
 uniform vec2  u_glow;      // центр свечения за заголовком
 uniform vec2  u_glowSize;
+uniform vec2  u_fade;      // по Y: где фон начинает и заканчивает растворяться в цвете страницы
 uniform float u_time;
 uniform vec4  u_meteor;    // xy — голова, z — яркость, w — угол полёта
-uniform float u_style;     // поверхность: 0 — чистая атмосфера, 1 — газовый гигант, 2 — облака
 
 const vec3 SPACE  = vec3(0.0196, 0.0118, 0.0588);   // #05030f, совпадает с фоном страницы
 const vec3 VIOLET = vec3(0.545, 0.424, 1.0);
@@ -108,7 +115,7 @@ vec3 sky(vec2 p, vec2 d, float dist, float sunSide) {
   return col;
 }
 
-/* Огни городов: трёхмерная сетка с шагом ~9 CSS-пикселей, в каждой ячейке одна точка.
+/* Огни городов: трёхмерная сетка с шагом ~9 CSS-пикселей, в ячейке не больше одной точки.
    Видны только точки, оказавшиеся у самой поверхности сферы, поэтому огни круглые, а не штрихи. */
 float cityDots(vec3 q) {
   vec3 u = q * (u_radius / (9.0 * u_dpr));
@@ -124,37 +131,15 @@ vec3 planet(vec2 d, float dist, float sunSide) {
   vec3 n = vec3(d.x, -d.y, sqrt(max((R - dist) * (R + dist), 0.0))) / R;
   vec3 q = rotate(n, AXIS, u_time * 0.0085);
 
-  /* Поверхность — три варианта на выбор (u_style):
-     land  — маска суши, на ней горят ночные огни;
-     cover — облачность, гасит огни и чуть светится ночью. */
-  float land = 0.0, cover = 0.0;
-  vec3 surface;
+  /* Облака: крупные системы задают, где облачно, мелкий fbm с искажением координат даёт волокна */
+  float land = smoothstep(0.50, 0.57, fbm(q * 5.0 + 4.0));
+  vec3 cq = q * 15.0 + vec3(0.0, u_time * 0.0015, 20.0);
+  cq += 0.8 * (vec3(noise(cq * 0.6 + 11.0), noise(cq * 0.6 + 23.0), noise(cq * 0.6 + 37.0)) - 0.5);
+  float systems = smoothstep(0.42, 0.62, fbm(q * 4.0 + 31.0));
+  float cover = systems * smoothstep(0.44, 0.66, fbm(cq)) * (0.6 + 0.4 * noise(cq * 5.0));
 
-  if (u_style < 0.5) {
-    /* 0. Чистая атмосфера: ровный цвет, вращение читается только по огням и звёздам */
-    land = smoothstep(0.50, 0.57, fbm(q * 5.0 + 4.0));
-    surface = vec3(0.07, 0.055, 0.19);
-
-  } else if (u_style < 1.5) {
-    /* 1. Газовый гигант: полосы по широте. Сама широта при вращении не меняется,
-          поэтому движение видно по турбулентности, которая сносит края полос. */
-    float lat = dot(n, AXIS) + 0.035 * (noise(q * 6.0) - 0.5) + 0.012 * (noise(q * 19.0) - 0.5);
-    float wide = noise(vec3(lat * 9.0, 1.7, 4.2));
-    float fine = 0.5 + 0.5 * sin(lat * 70.0 + 5.0 * wide);
-    float band = mix(wide, fine, 0.45);
-    surface = mix(vec3(0.05, 0.035, 0.16), vec3(0.40, 0.30, 0.62), smoothstep(0.25, 0.80, band));
-    surface = mix(surface, vec3(0.62, 0.42, 0.72), 0.5 * smoothstep(0.70, 0.92, wide));
-
-  } else {
-    /* 2. Облака: искажение координат шумом даёт волокна, узкий порог — резкие края */
-    land = smoothstep(0.50, 0.57, fbm(q * 5.0 + 4.0));
-    vec3 cq = q * 15.0 + vec3(0.0, u_time * 0.0015, 20.0);
-    cq += 0.8 * (vec3(noise(cq * 0.6 + 11.0), noise(cq * 0.6 + 23.0), noise(cq * 0.6 + 37.0)) - 0.5);
-    float systems = smoothstep(0.42, 0.62, fbm(q * 4.0 + 31.0));          // крупные облачные системы
-    cover = systems * smoothstep(0.44, 0.66, fbm(cq)) * (0.6 + 0.4 * noise(cq * 5.0));
-    surface = mix(vec3(0.035, 0.03, 0.13), vec3(0.12, 0.085, 0.24), land);
-    surface = mix(surface, vec3(0.55, 0.50, 0.82), cover * 0.9);
-  }
+  vec3 surface = mix(vec3(0.035, 0.03, 0.13), vec3(0.12, 0.085, 0.24), land);
+  surface = mix(surface, vec3(0.55, 0.50, 0.82), cover * 0.9);
 
   /* Дневная сторона — узкий серп у кромки: солнце стоит сразу за горизонтом */
   float ndl = dot(n, SUN);
@@ -162,13 +147,10 @@ vec3 planet(vec2 d, float dist, float sunSide) {
   vec3 dayCol = surface * (0.40 + 2.4 * max(ndl, 0.0));
 
   /* Ночная сторона: едва заметная поверхность и огни городов — только на суше и не под облаками */
-  vec3 nightCol = SPACE + surface * 0.06;
-  if (land > 0.0) {
-    float cluster = smoothstep(0.46, 0.62, fbm(q * 26.0 + 9.0));
-    float city    = land * cluster * (1.0 - cover) * smoothstep(0.06, 0.30, n.z) * cityDots(q);
-    vec3 cityTint = mix(vec3(0.77, 0.69, 1.0), vec3(1.0, 0.80, 0.55), step(0.45, noise(q * 40.0 + 2.0)));
-    nightCol += cityTint * city * 0.8;
-  }
+  float cluster = smoothstep(0.46, 0.62, fbm(q * 26.0 + 9.0));
+  float city    = land * cluster * (1.0 - cover) * smoothstep(0.06, 0.30, n.z) * cityDots(q);
+  vec3 cityTint = mix(vec3(0.77, 0.69, 1.0), vec3(1.0, 0.80, 0.55), step(0.45, noise(q * 40.0 + 2.0)));
+  vec3 nightCol = SPACE + surface * 0.06 + cityTint * city * 0.8;
 
   vec3 col = mix(nightCol, dayCol, day);
 
@@ -180,7 +162,7 @@ vec3 planet(vec2 d, float dist, float sunSide) {
 
 void main() {
   vec2 p = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y);
-  float fade = smoothstep(0.6, 1.0, p.y / u_res.y);      // низ канваса растворяется в фоне страницы
+  float fade = smoothstep(u_fade.x, u_fade.y, p.y);      // книзу фон растворяется в цвете страницы
   vec3 col = SPACE;
 
   if (fade < 1.0) {
@@ -197,32 +179,115 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
+  const MAX_CARDS = 16;
+  const GLASS = /* glsl */ `
+precision highp float;
+
+uniform sampler2D u_scene;          // готовая сцена из первого прохода
+uniform vec2  u_res;
+uniform float u_dpr;
+uniform vec4  u_cards[${MAX_CARDS}];          // xy — центр, zw — полуразмеры (физ. пиксели, Y вниз)
+uniform int   u_count;
+uniform float u_corner;             // радиус скругления карточки
+uniform vec2  u_pointer;            // курсор: блик на фаске поворачивается к нему
+
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+/* Расстояние со знаком до скруглённого прямоугольника: внутри отрицательное */
+float sdCard(vec2 p, vec4 card) {
+  vec2 q = abs(p - card.xy) - card.zw + u_corner;
+  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - u_corner;
+}
+
+vec3 scene(vec2 p) {
+  return texture2D(u_scene, vec2(p.x, u_res.y - p.y) / u_res).rgb;
+}
+
+/* Матовое стекло: 12 выборок по спирали. Поворот спирали свой у каждого пикселя —
+   вместо ступенек размытия получается мелкое зерно, как у настоящего матового стекла. */
+vec3 frost(vec2 p, float radius, float turn) {
+  vec3 sum = vec3(0.0);
+  for (int i = 0; i < 12; i++) {
+    float k = float(i);
+    float a = k * 2.39996 + turn;
+    sum += scene(p + radius * sqrt((k + 0.5) / 12.0) * vec2(cos(a), sin(a)));
+  }
+  return sum / 12.0;
+}
+
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y);
+  vec3 col = scene(p);
+
+  /* Ближайшая карточка: они не пересекаются, поэтому достаточно минимума расстояний */
+  float dmin = 1e6;
+  vec4 card = vec4(0.0);
+  for (int i = 0; i < ${MAX_CARDS}; i++) {
+    if (i >= u_count) break;
+    float d = sdCard(p, u_cards[i]);
+    if (d < dmin) { dmin = d; card = u_cards[i]; }
+  }
+
+  if (dmin > 0.5) {
+    col *= 1.0 - 0.30 * exp(-dmin / (16.0 * u_dpr));      // мягкая тень вокруг стекла
+    gl_FragColor = vec4(col, 1.0);
+    return;
+  }
+
+  float inside = -dmin;
+  vec2 e = vec2(1.0, 0.0);
+  vec2 n = normalize(vec2(sdCard(p + e.xy, card) - sdCard(p - e.xy, card),
+                          sdCard(p + e.yx, card) - sdCard(p - e.yx, card)) + 1e-6);
+
+  /* Фаска шириной 20px с круглым профилем: чем ближе к краю, тем круче наклон стекла
+     и тем дальше за край карточки уходит выборка — фон у кромки сжимается, как в линзе. */
+  float t = clamp(1.0 - inside / (20.0 * u_dpr), 0.0, 1.0);
+  float bend = 1.0 - sqrt(1.0 - t * t);
+  vec2 shift = n * bend * 44.0 * u_dpr;
+
+  float turn = 6.2832 * hash12(gl_FragCoord.xy);
+  float blur = 7.0 * u_dpr;
+  vec3 glass = frost(p + shift, blur, turn);
+  if (t > 0.02) {                                          // аберрация: красный и синий преломляются по-разному
+    glass.r = frost(p + shift * 1.18, blur, turn).r;
+    glass.b = frost(p + shift * 0.82, blur, turn).b;
+  }
+  glass = glass * 0.80 + vec3(0.030, 0.026, 0.055);       // лёгкая тонировка: текст карточки должен читаться
+
+  /* Блик на кромке: ярче на стороне, обращённой к курсору, слабее — на противоположной */
+  vec2 toLight = normalize(u_pointer - card.xy + 1e-3);
+  float facing = dot(n, toLight);
+  float edgeDist = inside / (1.1 * u_dpr);
+  float line = exp(-edgeDist * edgeDist);
+  float spec = line * (0.12 + 0.9 * pow(max(facing, 0.0), 2.0) + 0.35 * pow(max(-facing, 0.0), 3.0));
+  float bevel = t * t * (0.10 + 0.22 * max(facing, 0.0));  // фаска светится шире линии: стекло выглядит объёмным
+  glass += vec3(0.95, 0.92, 1.0) * spec * 0.85 + vec3(0.62, 0.52, 1.0) * bevel;
+
+  col = mix(col, glass, clamp(0.5 - dmin, 0.0, 1.0));      // сглаживание края карточки
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
   const cv = document.getElementById('stars');
   const page = document.querySelector('.page');
   const limb = document.querySelector('.limb');
   const hero = document.querySelector('.hero');
+  const grid = document.getElementById('grid');
+  const cardsBar = document.getElementById('cards');
   const MAX_DPR = 1.5;                                     // шейдер тяжёлый, звёздам хватает и 1.5×
+  const BASE_HEIGHT = 900;                                 // CSS-высота канваса, пока стёкла не тянут его ниже
 
-  let gl = null, U = null;
-  let scale = 1, geo = null;
+  let gl = null, scene = null, glass = null, fbo = null, sceneTex = null;
+  let scale = 1, geo = null, cardCount = 0;
   let raf = 0, last = 0, onScreen = true, enabled = true, meteor = null, nextMeteor = 5;
+  const pointer = { x: 0, y: 0, tx: 0, ty: 0, active: false };
 
-  /* Вариант поверхности планеты: кнопки #surface в подвале, выбор запоминается */
-  let style = 1;
-  try { const saved = localStorage.getItem('sky-surface'); if (saved !== null && [0, 1, 2].includes(Number(saved))) style = Number(saved); } catch {}
-  const surfaceBar = document.getElementById('surface');
-  const paintSurface = () => {
-    for (const b of surfaceBar.querySelectorAll('button')) b.setAttribute('aria-pressed', Number(b.dataset.style) === style);
-  };
-  surfaceBar.addEventListener('click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    style = Number(b.dataset.style);
-    try { localStorage.setItem('sky-surface', String(style)); } catch {}
-    paintSurface();
-    draw(performance.now() / 1000);   // при выключенной анимации кадр иначе не обновится
-  });
-  paintSurface();
+  /* Режим карточек: flat — имитация стекла на CSS, blur — backdrop-filter, liquid — второй проход WebGL */
+  let cards = 'flat';
+  try { const saved = localStorage.getItem('sky-cards'); if (['flat', 'blur', 'liquid'].includes(saved)) cards = saved; } catch {}
 
   function compile(type, src) {
     const sh = gl.createShader(type);
@@ -231,27 +296,37 @@ void main() {
     if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
     return sh;
   }
+  function program(frag, uniforms) {
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, frag));
+    gl.bindAttribLocation(prog, 0, 'a_pos');               // один буфер и один атрибут на обе программы
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    const u = {};
+    for (const name of uniforms) u[name] = gl.getUniformLocation(prog, 'u_' + name);
+    return { prog, u };
+  }
 
   function init() {
     gl = cv.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' });
     if (!gl) return false;
     try {
-      const prog = gl.createProgram();
-      gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
-      gl.linkProgram(prog);
-      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-      gl.useProgram(prog);
+      scene = program(SCENE, ['res', 'dpr', 'center', 'radius', 'glow', 'glowSize', 'fade', 'time', 'meteor']);
+      glass = program(GLASS, ['scene', 'res', 'dpr', 'cards', 'count', 'corner', 'pointer']);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-      const loc = gl.getAttribLocation(prog, 'a_pos');
-      gl.enableVertexAttribArray(loc);
-      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
-      U = {};
-      for (const name of ['res', 'dpr', 'center', 'radius', 'glow', 'glowSize', 'time', 'meteor', 'style'])
-        U[name] = gl.getUniformLocation(prog, 'u_' + name);
+      sceneTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      fbo = gl.createFramebuffer();
     } catch (err) {
       console.error('Sky: шейдер не собрался, остаётся CSS-фон.', err);
       gl = null;
@@ -262,6 +337,13 @@ void main() {
 
   function build() {
     if (!gl) return;
+    const liquid = cards === 'liquid';
+
+    /* Стёкла рисует канвас, поэтому в режиме liquid он должен накрывать всю сетку карточек */
+    const pageTop = page.getBoundingClientRect().top;
+    const gridBottom = grid.hidden ? 0 : grid.getBoundingClientRect().bottom - pageTop + 60;
+    cv.style.height = Math.round(liquid ? Math.max(BASE_HEIGHT, gridBottom) : BASE_HEIGHT) + 'px';
+
     const w = cv.clientWidth, h = cv.clientHeight;
     if (!w || !h) return;
     const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -273,13 +355,58 @@ void main() {
     const R = l.width / 2;
     geo = { w, h, R, cx: l.left - c.left + R, cy: l.top - c.top + R };
 
-    gl.uniform2f(U.res, cv.width, cv.height);
-    gl.uniform1f(U.dpr, scale);
-    gl.uniform2f(U.center, geo.cx * scale, geo.cy * scale);
-    gl.uniform1f(U.radius, R * scale);
-    gl.uniform2f(U.glow, geo.cx * scale, (hr.top - c.top + 130) * scale);
-    gl.uniform2f(U.glowSize, Math.min(920, w * 1.3) / 2 * 1.1 * scale, 270 * 1.1 * scale);
+    gl.useProgram(scene.prog);
+    gl.uniform2f(scene.u.res, cv.width, cv.height);
+    gl.uniform1f(scene.u.dpr, scale);
+    gl.uniform2f(scene.u.center, geo.cx * scale, geo.cy * scale);
+    gl.uniform1f(scene.u.radius, R * scale);
+    gl.uniform2f(scene.u.glow, geo.cx * scale, (hr.top - c.top + 130) * scale);
+    gl.uniform2f(scene.u.glowSize, Math.min(920, w * 1.3) / 2 * 1.1 * scale, 270 * 1.1 * scale);
+    gl.uniform2f(scene.u.fade, BASE_HEIGHT * .6 * scale, BASE_HEIGHT * scale);
+
+    if (liquid) {
+      gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, cv.width, cv.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTex, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      gl.useProgram(glass.prog);
+      gl.uniform1i(glass.u.scene, 0);
+      gl.uniform2f(glass.u.res, cv.width, cv.height);
+      gl.uniform1f(glass.u.dpr, scale);
+      gl.uniform1f(glass.u.corner, 18 * scale);
+    }
+    syncCards(c);
+    if (!pointer.active) restPointer();
     draw(performance.now() / 1000);
+  }
+
+  /* Прямоугольники карточек → uniform-массив. Карточки и канвас прокручиваются вместе,
+     поэтому координаты меняются только при перестройке сетки, а не при скролле. */
+  function syncCards(canvasRect) {
+    const liquid = gl && cards === 'liquid';
+    const data = new Float32Array(MAX_CARDS * 4);
+    cardCount = 0;
+    for (const el of grid.querySelectorAll('.card')) {
+      const on = liquid && cardCount < MAX_CARDS;
+      el.classList.toggle('lq', on);                       // сверх лимита карточка остаётся обычной, с CSS-заливкой
+      if (!on) continue;
+      const r = el.getBoundingClientRect();
+      data.set([(r.left - canvasRect.left + r.width / 2) * scale, (r.top - canvasRect.top + r.height / 2) * scale,
+        r.width / 2 * scale, r.height / 2 * scale], cardCount * 4);
+      cardCount++;
+    }
+    if (!liquid) return;
+    gl.useProgram(glass.prog);
+    gl.uniform4fv(glass.u.cards, data);
+    gl.uniform1i(glass.u.count, cardCount);
+  }
+
+  /* Без курсора свет стоит слева сверху, как у остальных бликов на странице */
+  function restPointer() {
+    pointer.tx = (geo ? geo.cx : 0) - 4000; pointer.ty = -4000;
+    pointer.x = pointer.tx; pointer.y = pointer.ty;
   }
 
   /* Метеор считается на CPU и уходит в шейдер одним vec4 */
@@ -300,9 +427,22 @@ void main() {
 
   function draw(t) {
     if (!gl || !geo) return;
-    gl.uniform1f(U.time, t);
-    gl.uniform1f(U.style, style);
-    gl.uniform4fv(U.meteor, stepMeteor(t));
+    const liquid = cards === 'liquid';
+
+    gl.useProgram(scene.prog);
+    gl.uniform1f(scene.u.time, t);
+    gl.uniform4fv(scene.u.meteor, stepMeteor(t));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, liquid ? fbo : null);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    if (!liquid) return;
+
+    pointer.x += (pointer.tx - pointer.x) * .18;           // блик догоняет курсор с небольшой инерцией
+    pointer.y += (pointer.ty - pointer.y) * .18;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(glass.prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+    gl.uniform2f(glass.u.pointer, pointer.x * scale, pointer.y * scale);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
@@ -317,25 +457,63 @@ void main() {
     if (gl && enabled && onScreen) raf = requestAnimationFrame(frame);
   }
 
-  let pending = 0;
+  let pending = 0, still = 0;
   const rebuild = () => { cancelAnimationFrame(pending); pending = requestAnimationFrame(build); };
 
   function boot() {
-    if (!init()) return;
+    if (!init()) return false;
     page.classList.add('webgl');
     build();
     sync();
+    return true;
   }
+
+  /* ── Переключатель режима карточек ── */
+  function paintCards() {
+    for (const name of ['flat', 'blur', 'liquid']) page.classList.toggle('cards-' + name, cards === name);
+    for (const b of cardsBar.querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.cards === cards);
+  }
+  cardsBar.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    cards = b.dataset.cards;
+    try { localStorage.setItem('sky-cards', cards); } catch {}
+    paintCards();
+    rebuild();
+  });
+
+  addEventListener('pointermove', e => {
+    if (cards !== 'liquid' || e.pointerType === 'touch') return;
+    const c = cv.getBoundingClientRect();
+    pointer.tx = e.clientX - c.left; pointer.ty = e.clientY - c.top;
+    pointer.active = true;
+    if (raf) return;
+    pointer.x = pointer.tx; pointer.y = pointer.ty;        // анимация выключена — блик отвечает одним кадром, без инерции
+    cancelAnimationFrame(still);
+    still = requestAnimationFrame(now => draw(now / 1000));
+  });
+  document.documentElement.addEventListener('pointerleave', () => { pointer.active = false; pointer.tx = (geo ? geo.cx : 0) - 4000; pointer.ty = -4000; });
 
   cv.addEventListener('webglcontextlost', e => { e.preventDefault(); cancelAnimationFrame(raf); raf = 0; gl = null; });
   cv.addEventListener('webglcontextrestored', boot);
   const ro = new ResizeObserver(rebuild);
   ro.observe(hero);
   ro.observe(cv);
+  ro.observe(grid);
+  new MutationObserver(rebuild).observe(grid, { childList: true });   // фильтр, поиск, новый блокнот
   new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; sync(); }).observe(cv);
 
   return {
-    start(on) { enabled = on; boot(); },
+    start(on) {
+      enabled = on;
+      if (!boot()) {                                       // без WebGL жидкое стекло недоступно
+        const liquidBtn = cardsBar.querySelector('[data-cards="liquid"]');
+        liquidBtn.disabled = true; liquidBtn.title = 'Нужен WebGL';
+        if (cards === 'liquid') cards = 'flat';
+      }
+      paintCards();
+      rebuild();
+    },
     set(on) { enabled = on; meteor = null; sync(); },
   };
 })();
