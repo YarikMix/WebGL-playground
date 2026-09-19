@@ -1,16 +1,17 @@
 # WebGL-playground
 
 Прототип главной страницы сервиса блокнотов (аналог Google Colab) в космической
-стилистике. Репозиторий нужен, чтобы сравнить две реализации анимированного фона —
-планеты и звёздного неба — без сторонних библиотек.
+стилистике. Репозиторий нужен, чтобы сравнить реализации анимированного фона —
+планеты и звёздного неба.
 
 | Ветка | Фон | Демо |
 |---|---|---|
-| `main` | Canvas 2D + CSS-диск планеты | <https://yarikmix.github.io/WebGL-playground/> |
-| `webgl` | WebGL, планета одним фрагментным шейдером | <https://yarikmix.github.io/WebGL-playground/webgl/> |
+| `main` | Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/> |
+| `webgl` | чистый WebGL, планета одним фрагментным шейдером, без библиотек | <https://yarikmix.github.io/WebGL-playground/webgl/> |
+| `r3f` | официальный React + three.js через react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/r3f/> |
 
-Всё, что отличает ветки, лежит в `sky.js` (и паре правил в `styles.css`):
-`git diff main webgl -- sky.js`.
+`main` и `webgl` отличаются по сути одним файлом: `git diff main webgl -- sky.js`.
+Ветка `r3f` — отдельное приложение на Vite со своей структурой.
 
 ## Структура
 
