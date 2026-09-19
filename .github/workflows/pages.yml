@@ -1,10 +1,12 @@
 name: Deploy to GitHub Pages
 
-# Сайт собирается из двух веток: main — в корень, webgl — в /webgl/.
-# Так обе реализации фона доступны по соседним адресам и их можно сравнить.
+# Сайт собирается из трёх веток: main — в корень, webgl — в /webgl/, r3f — в /r3f/.
+# Так все реализации фона доступны по соседним адресам и их можно сравнить.
+# Файл должен быть одинаковым во всех трёх ветках: push запускает workflow из той ветки,
+# в которую пришёл, и устаревшая копия выложит сайт без недостающих разделов.
 on:
   push:
-    branches: [main, webgl]
+    branches: [main, webgl, r3f]
   workflow_dispatch:
 
 permissions:
@@ -35,6 +37,27 @@ jobs:
         with:
           ref: webgl
           path: site/webgl
+
+      # r3f — единственная ветка со сборкой: React + Vite, в сайт попадает только dist
+      - name: Checkout r3f
+        id: r3f
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: r3f
+          path: r3f-src
+
+      - uses: oven-sh/setup-bun@v2
+        if: steps.r3f.outcome == 'success'
+
+      - name: Build r3f
+        if: steps.r3f.outcome == 'success'
+        working-directory: r3f-src
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+          mkdir -p ../site/r3f
+          cp -r dist/. ../site/r3f/
 
       - name: Drop repository internals
         run: rm -rf site/.git site/.github site/webgl/.git site/webgl/.github
