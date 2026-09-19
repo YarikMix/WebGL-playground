@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -75,13 +75,17 @@ export default function Stars({ width, planet, fade, motion }) {
     return g;
   }, [planet.cx, planet.cy, planet.R, width]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => () => geometry.dispose(), [geometry]);   // при resize геометрия пересоздаётся — старую освобождаем
+
+  const material = useRef(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 }, uDpr: { value: 1 }, uFade: { value: new THREE.Vector2() } }), []);
-  uniforms.uDpr.value = dpr;
-  uniforms.uFade.value.set(fade[0], fade[1]);
 
   useFrame((state, delta) => {
+    const u = material.current.uniforms;      // только так: см. примечание про uniform-ы в glsl.js
+    u.uDpr.value = dpr;
+    u.uFade.value.set(fade[0], fade[1]);
     if (!motion) return;
-    uniforms.uTime.value = state.clock.elapsedTime;
+    u.uTime.value = state.clock.elapsedTime;
     group.current.rotation.z -= 0.0035 * Math.min(delta, 0.1);
   });
 
@@ -89,7 +93,7 @@ export default function Stars({ width, planet, fade, motion }) {
   return (
     <group ref={group} position={[planet.cx, -planet.cy, -planet.R - 100]}>
       <points geometry={geometry} frustumCulled={false}>
-        <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
+        <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
           transparent depthWrite={false} blending={THREE.AdditiveBlending} />
       </points>
     </group>

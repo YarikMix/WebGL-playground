@@ -21,7 +21,7 @@ void main() {
 }`;
 
 export default function Meteor({ width, planet, motion }) {
-  const mesh = useRef(null);
+  const mesh = useRef(null), material = useRef(null);
   const flight = useRef({ active: null, next: 5 });
   const uniforms = useMemo(() => ({ uAlpha: { value: 0 } }), []);
 
@@ -43,14 +43,14 @@ export default function Meteor({ width, planet, motion }) {
     // плоскость центрируется на середине хвоста; ось Y сцены направлена вверх, поэтому угол со знаком минус
     m.position.set(hx - Math.cos(ang) * LENGTH / 2, -(hy - Math.sin(ang) * LENGTH / 2), -50);
     m.rotation.z = -ang;
-    uniforms.uAlpha.value = Math.sin(Math.PI * p) * 0.9;
+    material.current.uniforms.uAlpha.value = Math.sin(Math.PI * p) * 0.9;   // через материал: см. glsl.js
     m.visible = true;
   });
 
   return (
     <mesh ref={mesh} visible={false}>
       <planeGeometry args={[LENGTH, 2.6]} />
-      <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
+      <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
         transparent depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} />
     </mesh>
   );

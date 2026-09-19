@@ -82,18 +82,15 @@ void main() {
 }`;
 
 export default function Planet({ planet, fade, motion }) {
-  const mesh = useRef(null);
-  const uniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uRadius: { value: planet.R },
-    uFade: { value: new THREE.Vector2() },
-  }), []);   // eslint-disable-line react-hooks/exhaustive-deps
-  uniforms.uRadius.value = planet.R;
-  uniforms.uFade.value.set(fade[0], fade[1]);
+  const mesh = useRef(null), material = useRef(null);
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uRadius: { value: 0 }, uFade: { value: new THREE.Vector2() } }), []);
 
   useFrame((state, delta) => {
+    const u = material.current.uniforms;      // только так: см. примечание про uniform-ы в glsl.js
+    u.uRadius.value = planet.R;
+    u.uFade.value.set(fade[0], fade[1]);
     if (!motion) return;
-    uniforms.uTime.value = state.clock.elapsedTime;
+    u.uTime.value = state.clock.elapsedTime;
     mesh.current.rotateOnWorldAxis(AXIS, -0.0085 * Math.min(delta, 0.1));   // верх диска плывёт слева направо
   });
 
@@ -101,7 +98,7 @@ export default function Planet({ planet, fade, motion }) {
     // единичная сфера масштабируется до радиуса в пикселях: геометрия не пересоздаётся при resize
     <mesh ref={mesh} position={[planet.cx, -planet.cy, -planet.R - 100]} scale={planet.R}>
       <sphereGeometry args={[1, 384, 192]} />
-      <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} />
+      <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} />
     </mesh>
   );
 }

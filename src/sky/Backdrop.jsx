@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OUTPUT, PALETTE } from './glsl.js';
 
@@ -42,6 +43,7 @@ void main() {
 }`;
 
 export default function Backdrop({ width, height, planet, glow, fade }) {
+  const material = useRef(null);
   const uniforms = useMemo(() => ({
     uCenter: { value: new THREE.Vector2() },
     uRadius: { value: 0 },
@@ -49,16 +51,20 @@ export default function Backdrop({ width, height, planet, glow, fade }) {
     uGlowSize: { value: new THREE.Vector2() },
     uFade: { value: new THREE.Vector2() },
   }), []);
-  uniforms.uCenter.value.set(planet.cx, planet.cy);
-  uniforms.uRadius.value = planet.R;
-  uniforms.uGlow.value.set(glow.x, glow.y);
-  uniforms.uGlowSize.value.set(glow.rx, glow.ry);
-  uniforms.uFade.value.set(fade[0], fade[1]);
+
+  useFrame(() => {
+    const u = material.current.uniforms;      // только так: см. примечание про uniform-ы в glsl.js
+    u.uCenter.value.set(planet.cx, planet.cy);
+    u.uRadius.value = planet.R;
+    u.uGlow.value.set(glow.x, glow.y);
+    u.uGlowSize.value.set(glow.rx, glow.ry);
+    u.uFade.value.set(fade[0], fade[1]);
+  });
 
   return (
     <mesh position={[width / 2, -height / 2, -2 * planet.R - 400]} scale={[width, height, 1]}>
       <planeGeometry args={[1, 1]} />
-      <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} depthWrite={false} />
+      <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} depthWrite={false} />
     </mesh>
   );
 }
