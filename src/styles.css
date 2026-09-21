@@ -211,3 +211,8 @@ main { position: relative; padding-bottom: 24px; }
 .field-toggle:hover { color: var(--ice); }
 .mode-signup .auth-form { order: 2; }
 .mode-signup .auth-invite { order: 1; }
+.field-error { font-size: 12.5px; color: #ff9a9a; }
+.field input[aria-invalid="true"] { border-color: rgba(255, 120, 120, .55); }
+.auth-aux { margin: 0; padding: 0; font-size: 13px; color: var(--mist); background: none; border: 0; cursor: pointer; text-align: left; }
+.auth-aux:hover { color: var(--ice); }
+.btn:disabled { opacity: .6; cursor: progress; }

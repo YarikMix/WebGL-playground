@@ -1,5 +1,6 @@
 import type { RefObject } from 'react';
 import AuthCard from '../auth/AuthCard';
+import type { Session } from '../session';
 
 interface AuthProps {
   /** оба рефа сцены указывают на один и тот же контейнер: он же источник свечения за карточкой,
@@ -7,9 +8,10 @@ interface AuthProps {
   glowRef: RefObject<HTMLElement | null>;
   cardsRef: RefObject<HTMLDivElement | null>;
   limbRef: RefObject<HTMLDivElement | null>;
+  onSignIn: (session: Session) => void;
 }
 
-export default function Auth({ glowRef, cardsRef, limbRef }: AuthProps) {
+export default function Auth({ glowRef, cardsRef, limbRef, onSignIn }: AuthProps) {
   return (
     <div className="auth wrap" ref={node => { cardsRef.current = node; glowRef.current = node; }}>
       <a className="logo" href="#" aria-label="Nebulab — на главную">
@@ -21,7 +23,7 @@ export default function Auth({ glowRef, cardsRef, limbRef }: AuthProps) {
         nebulab
       </a>
 
-      <AuthCard />
+      <AuthCard onSignIn={onSignIn} />
 
       {/* CSS-диск планеты: фон, пока сцена грузится (и если не загрузится), и источник её геометрии */}
       <div className="limb" ref={limbRef} aria-hidden="true" />

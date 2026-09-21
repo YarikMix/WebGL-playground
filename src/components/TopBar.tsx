@@ -3,10 +3,11 @@ import { useEffect, useRef } from 'react';
 interface TopBarProps {
   query: string;
   onQuery: (value: string) => void;
-  onProfile: () => void;
+  initials: string;
+  onSignOut: () => void;
 }
 
-export default function TopBar({ query, onQuery, onProfile }: TopBarProps) {
+export default function TopBar({ query, onQuery, initials, onSignOut }: TopBarProps) {
   const input = useRef<HTMLInputElement>(null);
 
   // «/» переводит фокус в поиск, как в большинстве инструментов для разработчиков
@@ -42,7 +43,7 @@ export default function TopBar({ query, onQuery, onProfile }: TopBarProps) {
         <div className="quota" title="Остаток квоты GPU в этом месяце">
           GPU <span className="meter" aria-hidden="true"><i /></span> <b>11,5 ч</b>
         </div>
-        <button className="avatar" type="button" aria-label="Профиль" onClick={onProfile}>АЛ</button>
+        <button className="avatar" type="button" aria-label="Выйти" onClick={onSignOut}>{initials}</button>
       </div>
     </header>
   );

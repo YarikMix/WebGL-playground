@@ -4,7 +4,7 @@ import Auth from './screens/Auth';
 import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
 import { SUN_ORBIT } from './scene-config';
-import { loadSession } from './session';
+import { clearSession, loadSession, saveSession } from './session';
 import type { Session } from './session';
 import type { CardsMode } from './types';
 
@@ -26,9 +26,10 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 export default function App() {
   const [cards, setCards] = useState<CardsMode>(() => loadSetting('sky-cards-r3f', ['flat', 'liquid'] as const, 'liquid'));
   const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
-  // вход по кнопке пока не работает (задача 4) — сеттер сессии здесь не нужен,
-  // сессия только читается один раз, чтобы решить, какой экран показать
-  const [session] = useState<Session | null>(() => loadSession());
+  const [session, setSession] = useState<Session | null>(() => loadSession());
+
+  const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
+  const onSignOut = () => { clearSession(); setSession(null); };
 
   /* Готовность сцены — в два шага, и оба меняют вёрстку только после отрисованного кадра:
      skyReady   — канвас проявляется, CSS-фон гаснет;
@@ -56,9 +57,10 @@ export default function App() {
   return (
     <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}`} ref={pageRef}>
       {session === null
-        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} />
+        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} onSignIn={onSignIn} />
         : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
-            motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn} />}
+            motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn}
+            session={session} onSignOut={onSignOut} />}
 
       <SceneBoundary>
         <Suspense fallback={null}>

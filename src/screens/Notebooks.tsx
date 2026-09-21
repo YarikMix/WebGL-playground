@@ -4,6 +4,8 @@ import Hero from '../components/Hero';
 import NotebookGrid from '../components/NotebookGrid';
 import Footer from '../components/Footer';
 import { filters, initialNotebooks } from '../data';
+import { initials } from '../session';
+import type { Session } from '../session';
 import type { CardsMode, FilterId, Notebook } from '../types';
 
 interface NotebooksProps {
@@ -17,9 +19,11 @@ interface NotebooksProps {
   onCards: (mode: CardsMode) => void;
   /** стекло рисует сцена — карточки становятся прозрачными */
   glassOn: boolean;
+  session: Session;
+  onSignOut: () => void;
 }
 
-export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion, cards, onCards, glassOn }: NotebooksProps) {
+export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion, cards, onCards, glassOn, session, onSignOut }: NotebooksProps) {
   const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
   const [active, setActive] = useState<FilterId>('all');
   const [query, setQuery] = useState('');
@@ -46,7 +50,7 @@ export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion
 
   return (
     <>
-      <TopBar query={query} onQuery={setQuery} onProfile={() => setToast('В прототипе профиль не подключён')} />
+      <TopBar query={query} onQuery={setQuery} initials={initials(session)} onSignOut={onSignOut} />
       <Hero heroRef={glowRef} limbRef={limbRef} total={notebooks.length} running={notebooks.filter(n => n.run).length}
         onCreate={createNotebook} onUpload={() => setToast('В прототипе загрузка файлов не подключена')} />
 
