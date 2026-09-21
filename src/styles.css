@@ -8,6 +8,7 @@
   --violet: #8b6cff;
   --orchid: #d08bff;
   --signal: #5ef0a8;
+  --error: #ff9a9a; /* цвет сообщения об ошибке валидации — единственный красный токен в палитре */
   --glass: rgba(255, 255, 255, .04);
   --glass-hi: rgba(255, 255, 255, .065);
   --line: rgba(255, 255, 255, .08);
@@ -211,8 +212,8 @@ main { position: relative; padding-bottom: 24px; }
 .field-toggle:hover { color: var(--ice); }
 .mode-signup .auth-form { order: 2; }
 .mode-signup .auth-invite { order: 1; }
-.field-error { font-size: 12.5px; color: #ff9a9a; }
-.field input[aria-invalid="true"] { border-color: rgba(255, 120, 120, .55); }
+.field-error { font-size: 12.5px; color: var(--error); }
+.field input[aria-invalid="true"] { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
 .auth-aux { margin: 0; padding: 0; font-size: 13px; color: var(--mist); background: none; border: 0; cursor: pointer; text-align: left; }
 .auth-aux:hover { color: var(--ice); }
 .btn:disabled { opacity: .6; cursor: progress; }
