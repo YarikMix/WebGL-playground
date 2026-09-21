@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type DependencyList, type RefObject } from 'react';
+import { useLayoutEffect, useState, type RefObject } from 'react';
 import type { CardRect, SceneLayout } from './types';
 
 const BASE_HEIGHT = 900;   // высота канваса, пока стёкла карточек не тянут его ниже
@@ -16,7 +16,7 @@ export interface LayoutRefs {
    (из CSS-диска .limb), положение свечения за заголовком и прямоугольники карточек.
    Канвас прокручивается вместе со страницей, поэтому скролл ничего не меняет —
    пересчёт нужен только при изменении раскладки. */
-export function useSceneLayout({ pageRef, heroRef, limbRef, gridRef }: LayoutRefs, glass: boolean, deps: DependencyList): SceneLayout | null {
+export function useSceneLayout({ pageRef, heroRef, limbRef, gridRef }: LayoutRefs, glass: boolean): SceneLayout | null {
   const [layout, setLayout] = useState<SceneLayout | null>(null);
 
   useLayoutEffect(() => {
@@ -52,10 +52,13 @@ export function useSceneLayout({ pageRef, heroRef, limbRef, gridRef }: LayoutRef
     measure();
     const ro = new ResizeObserver(measure);
     for (const ref of [pageRef, heroRef, gridRef]) if (ref.current) ro.observe(ref.current);
+    // состав карточек может смениться без изменения размера контейнера (тот же счёт, другой набор) —
+    // ResizeObserver это не поймает, а вёрстке .card нужно точное соответствие текущим карточкам
+    const mo = new MutationObserver(measure);
+    if (gridRef.current) mo.observe(gridRef.current, { childList: true });
     void document.fonts?.ready.then(measure);     // после загрузки шрифтов высота hero меняется
-    return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [glass, ...deps]);
+    return () => { ro.disconnect(); mo.disconnect(); };
+  }, [glass]);
 
   return layout;
 }

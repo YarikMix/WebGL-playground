@@ -34,7 +34,7 @@ export default function App() {
   const limbRef = useRef<HTMLDivElement>(null), gridRef = useRef<HTMLDivElement>(null);
 
   const wantGlass = cards === 'liquid';
-  const layout = useSceneLayout({ pageRef, heroRef, limbRef, gridRef }, wantGlass, []);
+  const layout = useSceneLayout({ pageRef, heroRef, limbRef, gridRef }, wantGlass);
 
   const changeCards = (mode: CardsMode) => {
     if (mode !== 'liquid') setGlassReady(false);
