@@ -7,7 +7,7 @@ import Planet from './Planet';
 import Stars from './Stars';
 import Meteor from './Meteor';
 import GlassCards from './GlassCards';
-import type { SceneLayout } from '../types';
+import type { SceneLayout, SunDirection } from '../types';
 
 /* Сцена в координатах страницы: X вправо, Y вверх, 1 единица = 1 CSS-пиксель, левый верхний угол
    канваса — (0, 0). Камера ортографическая, поэтому меши встают ровно на свои DOM-места.
@@ -24,7 +24,7 @@ function PixelCamera() {
 
 /* Рендер по требованию: 30 кадров/с вместо 60, пауза вне экрана (в фоновой вкладке rAF сам встаёт).
    При выключенной анимации тикер не работает — кадр рисуется только когда что-то изменилось. */
-function Ticker({ enabled }: { enabled: boolean }) {
+function Ticker({ enabled, tickMs }: { enabled: boolean; tickMs: number }) {
   const invalidate = useThree(s => s.invalidate);
   const gl = useThree(s => s.gl);
 
@@ -34,7 +34,7 @@ function Ticker({ enabled }: { enabled: boolean }) {
     let raf = 0, last = 0, onScreen = true;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      if (!onScreen || now - last < 33) return;
+      if (!onScreen || now - last < tickMs) return;
       last = now;
       invalidate();
     };
@@ -42,7 +42,7 @@ function Ticker({ enabled }: { enabled: boolean }) {
     io.observe(gl.domElement);
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); io.disconnect(); };
-  }, [enabled, invalidate, gl]);
+  }, [enabled, tickMs, invalidate, gl]);
 
   return null;
 }
@@ -58,11 +58,17 @@ interface SkyProps {
   layout: SceneLayout;
   motion: boolean;
   glass: boolean;
+  sun: SunDirection;
+  spin: number;
+  /** непрерывных кадров нет (анимация выключена или `prefers-reduced-motion`) — Planet/Backdrop
+      ставят угол солнца сразу, без сглаживания, чтобы одного заказанного кадра хватило */
+  reducedMotion: boolean;
+  tickMs: number;
   onReady: () => void;
   onGlassReady: () => void;
 }
 
-export default function Sky({ layout, motion, glass, onReady, onGlassReady }: SkyProps) {
+export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
@@ -70,13 +76,17 @@ export default function Sky({ layout, motion, glass, onReady, onGlassReady }: Sk
         style={{ pointerEvents: 'none' }}>
         <color attach="background" args={['#05030f']} />
         <PixelCamera />
-        <Ticker enabled={motion} />
+        <Ticker enabled={motion} tickMs={tickMs} />
         <Redraw signal={layout} />
+        {/* Без этого сигнала смена sun/spin не заказывала ни одного кадра при frameloop="demand":
+            свет менялся в uniform-е, но канвас никогда не перерисовывался (CRITICAL финального ревью) */}
+        <Redraw signal={spin} />
         <FirstFrame onReady={onReady} />
 
-        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} />
+        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin}
+          motion={motion} reducedMotion={reducedMotion} />
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
-        <Planet planet={planet} fade={fade} motion={motion} />
+        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} />
         <Meteor width={width} planet={planet} motion={motion} />
         {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
       </Canvas>

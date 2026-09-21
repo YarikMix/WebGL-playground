@@ -8,6 +8,7 @@
   --violet: #8b6cff;
   --orchid: #d08bff;
   --signal: #5ef0a8;
+  --error: #ff9a9a; /* цвет сообщения об ошибке валидации — единственный красный токен в палитре */
   --glass: rgba(255, 255, 255, .04);
   --glass-hi: rgba(255, 255, 255, .065);
   --line: rgba(255, 255, 255, .08);
@@ -83,6 +84,12 @@ kbd { font: 500 11px/1 var(--mono); color: var(--mist); padding: 4px 6px; border
   background: radial-gradient(ellipse 46% 9% at 50% 0%, rgba(139, 108, 255, .22), transparent 70%), var(--void);
   box-shadow: 0 0 0 1px rgba(205, 190, 255, .30), 0 -2px 18px rgba(230, 215, 255, .45), 0 -26px 90px -6px rgba(139, 108, 255, .55), inset 0 30px 60px -30px rgba(190, 160, 255, .35);
   pointer-events: none;
+}
+/* Экран входа: солнце на сцене уходит вбок, и CSS-фолбэк должен светиться сбоку тоже — иначе
+   в момент готовности сцены свет прыгнет с бокового рассвета на кромку главной. */
+.auth-page .limb {
+  background: radial-gradient(ellipse 30% 14% at 86% 6%, rgba(200, 180, 255, .30), transparent 70%), var(--void);
+  box-shadow: 0 0 0 1px rgba(205, 190, 255, .22), 16px -19px 26px rgba(230, 215, 255, .35), 40px -48px 90px -6px rgba(139, 108, 255, .45), inset -40px 30px 70px -40px rgba(190, 160, 255, .35);
 }
 .hero-row { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 28px 40px; }
 .hero-text { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 640px; }
@@ -191,4 +198,50 @@ main { position: relative; padding-bottom: 24px; }
   .dot { animation: none !important; }
   .card, .btn { transition: none; }
   .card:hover { transform: none; }
+}
+
+/* ── Экран входа ── */
+/* Низ почти нулевой: .limb — абсолютный потомок и не входит в высоту .auth, его якорь (top: calc(100% - 30px))
+   считается от нижнего края .auth. Большой симметричный отступ уносил бы кромку планеты далеко под карточку —
+   нужно, чтобы кромка проходила через нижнюю часть карточки, как на главной через полосу карточек. */
+.auth { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(24px, 5vh, 48px); padding-block: clamp(40px, 12vh, 120px) 0; }
+.auth-card { display: grid; grid-template-columns: 1fr 1fr; width: min(900px, 100%); min-height: 420px; }
+.auth-form { display: flex; flex-direction: column; gap: 18px; padding: 36px 40px; }
+.auth-form h1 { margin: 0 0 6px; font: 500 clamp(22px, 3vw, 30px)/1.15 var(--display); letter-spacing: -.02em; }
+.auth-invite { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 36px 40px; text-align: center; }
+.auth-invite p { margin: 0; font: 500 18px/1.3 var(--display); letter-spacing: -.01em; }
+.field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: var(--mist); }
+.field-input { position: relative; display: flex; align-items: center; }
+.field input { width: 100%; height: 44px; padding: 0 44px 0 14px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); color: var(--ice); font-size: 15px; transition: border-color .15s, box-shadow .15s; }
+.field input:focus { outline: 0; border-color: rgba(160, 135, 255, .6); box-shadow: 0 0 0 3px rgba(139, 108, 255, .22); }
+.field-toggle { position: absolute; right: 6px; display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: none; color: var(--mist); cursor: pointer; }
+.field-toggle:hover { color: var(--ice); }
+.mode-signup .auth-form { order: 2; }
+.mode-signup .auth-invite { order: 1; }
+/* Кросс-фейд половин (§6.1): CSS `order` переставляет половины мгновенно — order не анимируется, —
+   поэтому переход делает отдельный класс `.crossfading`, который AuthCard вешает на .auth-card
+   на первую половину SWEEP_MS и снимает на середине (см. AuthCard.tsx): opacity успевает погаснуть
+   за первую половину этой константы и вернуться за вторую — визуально уходящая половина гаснет,
+   а на её месте (после мгновенного order) проявляется пришедшая. Общая константа с довортом
+   солнца в Planet.tsx/Backdrop.tsx (SWEEP_MS) — не «примерно 0,6 и 0,7», см. --sweep,
+   проставленную из JS на .auth. */
+.auth-form, .auth-invite { opacity: 1; transition: opacity calc(var(--sweep) * .5) ease; }
+.auth-card.crossfading .auth-form, .auth-card.crossfading .auth-invite { opacity: 0; }
+/* Высота строки зарезервирована всегда (элемент в DOM есть и без ошибки, см. AuthCard.tsx) —
+   появление текста не меняет высоту .field и не сдвигает всё, что ниже по странице (Ruling 10). */
+.field-error { display: block; min-height: 1.3em; line-height: 1.3; font-size: 12.5px; color: var(--error); }
+.field input[aria-invalid="true"] { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
+.auth-aux { margin: 0; padding: 0; font-size: 13px; color: var(--mist); background: none; border: 0; cursor: pointer; text-align: left; }
+.auth-aux:hover { color: var(--ice); }
+.btn:disabled { opacity: .6; cursor: progress; }
+
+@media (max-width: 860px) {
+  .auth-card { grid-template-columns: 1fr; min-height: 0; }
+  .auth-form { padding: 28px 24px; }
+  .auth-invite { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0 24px 28px; }
+  .auth-invite p { font: 400 14px/1.3 var(--body); color: var(--mist); }
+  .mode-signup .auth-form, .mode-signup .auth-invite { order: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-form, .auth-invite { transition: none; }
 }

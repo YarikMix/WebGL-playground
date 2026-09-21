@@ -22,6 +22,12 @@ export interface NotebookFilter {
 
 export type CardsMode = 'flat' | 'liquid';
 
+/** Режим карточки на экране входа: какая форма сейчас показана */
+export type AuthMode = 'login' | 'signup';
+
+/** Направление на солнце в координатах сцены */
+export type SunDirection = [number, number, number];
+
 /** Кусок кода для подсветки: c — комментарий, s — строка, k — ключевое слово, n — число */
 export interface CodeToken {
   text: string;
@@ -34,6 +40,8 @@ export interface CardRect {
   y: number;
   w: number;
   h: number;
+  /** одна большая плита (карточка входа), а не мелкая карточка блокнота — см. GlassCards.tsx */
+  large: boolean;
 }
 
 export interface PlanetGeometry {

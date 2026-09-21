@@ -1,11 +1,12 @@
-import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import TopBar from './components/TopBar';
-import Hero from './components/Hero';
-import NotebookGrid from './components/NotebookGrid';
-import Footer from './components/Footer';
-import { filters, initialNotebooks, loadSetting, saveSetting } from './data';
+import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import Notebooks from './screens/Notebooks';
+import Auth from './screens/Auth';
+import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
-import type { CardsMode, FilterId, Notebook } from './types';
+import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
+import { clearSession, loadSession, saveSession } from './session';
+import type { Session } from './session';
+import type { AuthMode, CardsMode } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
@@ -23,12 +24,38 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 }
 
 export default function App() {
-  const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
-  const [active, setActive] = useState<FilterId>('all');
-  const [query, setQuery] = useState('');
-  const [toast, setToast] = useState('');
   const [cards, setCards] = useState<CardsMode>(() => loadSetting('sky-cards-r3f', ['flat', 'liquid'] as const, 'liquid'));
   const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
+  const [session, setSession] = useState<Session | null>(() => loadSession());
+
+  /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
+  const [mode, setMode] = useState<AuthMode>('login');
+
+  /* Единственное место, где читается медиазапрос: прокидывается пропом туда, где непрерывных
+     кадров может не быть (Sky/Planet/Backdrop) и куда синхронизирован кросс-фейд половин
+     карточки (AuthCard) — вместо повторного чтения matchMedia в каждом месте. */
+  const reducedMotion = prefersReducedMotion();
+
+  const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
+  /* Раньше mode жил внутри AuthCard и сбрасывался сам — поддерево размонтировалось при смене
+     сессии. Теперь mode поднят в App (нужно для света сцены) и переживает выход, поэтому сброс
+     нужно делать явно — иначе после выхода из только что созданного аккаунта видна форма
+     регистрации вместо входа. */
+  const onSignOut = () => { clearSession(); setSession(null); setMode('login'); };
+
+  /* Тикер разгоняется на время проезда терминатора и возвращается обратно. Эффект реагирует
+     на смену mode, но не должен срабатывать при монтировании — иначе каждое открытие экрана
+     входа зря поднимало бы частоту на SWEEP_MS. При prefers-reduced-motion разгон не включаем
+     вовсе: терминатор двигается на пониженной частоте, глаз не должен ловить перепад скорости. */
+  const [sweeping, setSweeping] = useState(false);
+  const isFirstMode = useRef(true);
+  useEffect(() => {
+    if (isFirstMode.current) { isFirstMode.current = false; return; }
+    if (reducedMotion) return;
+    setSweeping(true);
+    const timer = setTimeout(() => setSweeping(false), SWEEP_MS);
+    return () => clearTimeout(timer);
+  }, [mode, reducedMotion]);
 
   /* Готовность сцены — в два шага, и оба меняют вёрстку только после отрисованного кадра:
      skyReady   — канвас проявляется, CSS-фон гаснет;
@@ -37,69 +64,43 @@ export default function App() {
   const [skyReady, setSkyReady] = useState(false);
   const [glassReady, setGlassReady] = useState(false);
 
-  const pageRef = useRef<HTMLDivElement>(null), heroRef = useRef<HTMLElement>(null);
-  const limbRef = useRef<HTMLDivElement>(null), gridRef = useRef<HTMLDivElement>(null);
-
-  const shown = useMemo(() => {
-    const test = filters.find(f => f.id === active)?.test ?? (() => true);
-    const q = query.trim().toLowerCase();
-    return notebooks.filter(n => test(n) && (!q || n.title.toLowerCase().includes(q)));
-  }, [notebooks, active, query]);
+  const pageRef = useRef<HTMLDivElement>(null), glowRef = useRef<HTMLElement>(null);
+  const limbRef = useRef<HTMLDivElement>(null), cardsRef = useRef<HTMLDivElement>(null);
 
   const wantGlass = cards === 'liquid';
-  const layout = useSceneLayout({ pageRef, heroRef, limbRef, gridRef }, wantGlass, [shown]);
+  const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass);
 
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(''), 2600);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  const createNotebook = () => {
-    setNotebooks(list => [{ id: Date.now(), title: 'Без названия', cells: 1, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
-    setActive('all');
-    setQuery('');
-    setToast('Блокнот создан');
-  };
-
-  const changeCards = (mode: CardsMode) => {
-    if (mode !== 'liquid') setGlassReady(false);
-    setCards(mode);
-    saveSetting('sky-cards-r3f', mode);
+  const changeCards = (next: CardsMode) => {
+    if (next !== 'liquid') setGlassReady(false);
+    setCards(next);
+    saveSetting('sky-cards-r3f', next);
   };
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
+  const onMotion = (on: boolean) => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); };
 
   const glassOn = wantGlass && glassReady;
+  const isAuth = session === null;
+  /* spin теперь поворачивает не планету, а солнце (Ruling 9, scene-config.ts): ±половина угла,
+     покой входа и покой регистрации симметричны относительно базовой композиции SUN_ORBIT.
+     Солнце у обоих экранов одно и то же — вход не заводит собственного (SUN_ORBIT). */
+  const spin = isAuth ? (mode === 'signup' ? SWEEP_ANGLE / 2 : -SWEEP_ANGLE / 2) : 0;
+  const tickMs = sweeping ? 0 : 33;
+
   return (
-    <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}`} ref={pageRef}>
-      <TopBar query={query} onQuery={setQuery} onProfile={() => setToast('В прототипе профиль не подключён')} />
-      <Hero heroRef={heroRef} limbRef={limbRef} total={notebooks.length} running={notebooks.filter(n => n.run).length}
-        onCreate={createNotebook} onUpload={() => setToast('В прототипе загрузка файлов не подключена')} />
+    <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
+      {isAuth
+        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} mode={mode} onModeChange={setMode} onSignIn={onSignIn} glassOn={glassOn} reducedMotion={reducedMotion} />
+        : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
+            motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn}
+            session={session} onSignOut={onSignOut} />}
+
       <SceneBoundary>
         <Suspense fallback={null}>
-          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} onReady={onSkyReady} onGlassReady={onGlassReady} />}
+          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={spin} reducedMotion={reducedMotion} tickMs={tickMs}
+            onReady={onSkyReady} onGlassReady={onGlassReady} />}
         </Suspense>
       </SceneBoundary>
-
-      <main className="wrap">
-        <h2 className="sr-only">Блокноты</h2>
-        <div className="bar">
-          <div className="chips" role="group" aria-label="Фильтр блокнотов">
-            {filters.map(f => (
-              <button key={f.id} className="chip" type="button" aria-pressed={f.id === active} onClick={() => setActive(f.id)}>
-                {f.label}<span>{notebooks.filter(f.test).length}</span>
-              </button>
-            ))}
-          </div>
-          <span className="sort">Сначала недавно изменённые</span>
-        </div>
-        <NotebookGrid gridRef={gridRef} notebooks={shown} glass={glassOn} onOpen={() => setToast('В прототипе редактор не подключён')} />
-        <Footer cards={cards} onCards={changeCards}
-          motion={motion} onMotion={on => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); }} />
-      </main>
-
-      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }
