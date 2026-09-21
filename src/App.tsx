@@ -1,8 +1,11 @@
 import { Component, Suspense, lazy, useCallback, useRef, useState, type ReactNode } from 'react';
 import Notebooks from './screens/Notebooks';
+import Auth from './screens/Auth';
 import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
 import { SUN_ORBIT } from './scene-config';
+import { loadSession } from './session';
+import type { Session } from './session';
 import type { CardsMode } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
@@ -23,6 +26,9 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 export default function App() {
   const [cards, setCards] = useState<CardsMode>(() => loadSetting('sky-cards-r3f', ['flat', 'liquid'] as const, 'liquid'));
   const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
+  // вход по кнопке пока не работает (задача 4) — сеттер сессии здесь не нужен,
+  // сессия только читается один раз, чтобы решить, какой экран показать
+  const [session] = useState<Session | null>(() => loadSession());
 
   /* Готовность сцены — в два шага, и оба меняют вёрстку только после отрисованного кадра:
      skyReady   — канвас проявляется, CSS-фон гаснет;
@@ -31,11 +37,11 @@ export default function App() {
   const [skyReady, setSkyReady] = useState(false);
   const [glassReady, setGlassReady] = useState(false);
 
-  const pageRef = useRef<HTMLDivElement>(null), heroRef = useRef<HTMLElement>(null);
-  const limbRef = useRef<HTMLDivElement>(null), gridRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null), glowRef = useRef<HTMLElement>(null);
+  const limbRef = useRef<HTMLDivElement>(null), cardsRef = useRef<HTMLDivElement>(null);
 
   const wantGlass = cards === 'liquid';
-  const layout = useSceneLayout({ pageRef, heroRef, limbRef, gridRef }, wantGlass);
+  const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass);
 
   const changeCards = (mode: CardsMode) => {
     if (mode !== 'liquid') setGlassReady(false);
@@ -49,8 +55,10 @@ export default function App() {
   const glassOn = wantGlass && glassReady;
   return (
     <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}`} ref={pageRef}>
-      <Notebooks heroRef={heroRef} limbRef={limbRef} gridRef={gridRef}
-        motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn} />
+      {session === null
+        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} />
+        : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
+            motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn} />}
 
       <SceneBoundary>
         <Suspense fallback={null}>

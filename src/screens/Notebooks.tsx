@@ -7,10 +7,10 @@ import { filters, initialNotebooks } from '../data';
 import type { CardsMode, FilterId, Notebook } from '../types';
 
 interface NotebooksProps {
-  /** heroRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
-  heroRef: RefObject<HTMLElement | null>;
+  /** glowRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
+  glowRef: RefObject<HTMLElement | null>;
   limbRef: RefObject<HTMLDivElement | null>;
-  gridRef: RefObject<HTMLDivElement | null>;
+  cardsRef: RefObject<HTMLDivElement | null>;
   motion: boolean;
   onMotion: (on: boolean) => void;
   cards: CardsMode;
@@ -19,7 +19,7 @@ interface NotebooksProps {
   glassOn: boolean;
 }
 
-export default function Notebooks({ heroRef, limbRef, gridRef, motion, onMotion, cards, onCards, glassOn }: NotebooksProps) {
+export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion, cards, onCards, glassOn }: NotebooksProps) {
   const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
   const [active, setActive] = useState<FilterId>('all');
   const [query, setQuery] = useState('');
@@ -47,7 +47,7 @@ export default function Notebooks({ heroRef, limbRef, gridRef, motion, onMotion,
   return (
     <>
       <TopBar query={query} onQuery={setQuery} onProfile={() => setToast('В прототипе профиль не подключён')} />
-      <Hero heroRef={heroRef} limbRef={limbRef} total={notebooks.length} running={notebooks.filter(n => n.run).length}
+      <Hero heroRef={glowRef} limbRef={limbRef} total={notebooks.length} running={notebooks.filter(n => n.run).length}
         onCreate={createNotebook} onUpload={() => setToast('В прототипе загрузка файлов не подключена')} />
 
       <main className="wrap">
@@ -62,7 +62,7 @@ export default function Notebooks({ heroRef, limbRef, gridRef, motion, onMotion,
           </div>
           <span className="sort">Сначала недавно изменённые</span>
         </div>
-        <NotebookGrid gridRef={gridRef} notebooks={shown} glass={glassOn} onOpen={() => setToast('В прототипе редактор не подключён')} />
+        <NotebookGrid gridRef={cardsRef} notebooks={shown} glass={glassOn} onOpen={() => setToast('В прототипе редактор не подключён')} />
         <Footer cards={cards} onCards={onCards} motion={motion} onMotion={onMotion} />
       </main>
 

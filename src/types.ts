@@ -22,6 +22,9 @@ export interface NotebookFilter {
 
 export type CardsMode = 'flat' | 'liquid';
 
+/** Режим карточки на экране входа: какая форма сейчас показана */
+export type AuthMode = 'login' | 'signup';
+
 /** Направление на солнце в координатах сцены */
 export type SunDirection = [number, number, number];
 
