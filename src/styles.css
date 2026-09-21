@@ -205,8 +205,16 @@ main { position: relative; padding-bottom: 24px; }
    считается от нижнего края .auth. Большой симметричный отступ уносил бы кромку планеты далеко под карточку —
    нужно, чтобы кромка проходила через нижнюю часть карточки, как на главной через полосу карточек. */
 .auth { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(24px, 5vh, 48px); padding-block: clamp(40px, 12vh, 120px) 0; }
-.auth-card { display: grid; grid-template-columns: 1fr 1fr; width: min(900px, 100%); min-height: 420px; }
-.auth-form { display: flex; flex-direction: column; gap: 18px; padding: 36px 40px; }
+/* Высота карточки не зависит от режима. В форме Попа, с которой снят приём, карточка фиксированной
+   высоты — панель едет, габариты не шевелятся; без этого при каждом переключении карточка «дышала»
+   на 74px, потому что в регистрации на одно поле больше. 512px — замеренная высота формы регистрации
+   плюс запас: заголовок задан clamp(22px, 3vw, 30px) и упирается в потолок 30px при ширине от 1000px,
+   значит 510 — настоящий максимум, а не значение для одного окна. min-height, а не height: если
+   сообщение об ошибке однажды перенесётся на две строки, карточка вырастет, а не обрежет текст. */
+.auth-card { display: grid; grid-template-columns: 1fr 1fr; width: min(900px, 100%); min-height: 512px; }
+/* justify-content: center — лишний воздух на входе делится поровну сверху и снизу, как в половине
+   с приглашением, иначе форма висела бы вверху, а под ней зияла пустота в 76px. */
+.auth-form { display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 36px 40px; }
 .auth-form h1 { margin: 0 0 6px; font: 500 clamp(22px, 3vw, 30px)/1.15 var(--display); letter-spacing: -.02em; }
 .auth-invite { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 36px 40px; text-align: center; }
 .auth-invite p { margin: 0; font: 500 18px/1.3 var(--display); letter-spacing: -.01em; }
@@ -218,15 +226,14 @@ main { position: relative; padding-bottom: 24px; }
 .field-toggle:hover { color: var(--ice); }
 .mode-signup .auth-form { order: 2; }
 .mode-signup .auth-invite { order: 1; }
-/* Кросс-фейд половин (§6.1): CSS `order` переставляет половины мгновенно — order не анимируется, —
-   поэтому переход делает отдельный класс `.crossfading`, который AuthCard вешает на .auth-card
-   на первую половину SWEEP_MS и снимает на середине (см. AuthCard.tsx): opacity успевает погаснуть
-   за первую половину этой константы и вернуться за вторую — визуально уходящая половина гаснет,
-   а на её месте (после мгновенного order) проявляется пришедшая. Общая константа с довортом
-   солнца в Planet.tsx/Backdrop.tsx (SWEEP_MS) — не «примерно 0,6 и 0,7», см. --sweep,
-   проставленную из JS на .auth. */
-.auth-form, .auth-invite { opacity: 1; transition: opacity calc(var(--sweep) * .5) ease; }
-.auth-card.crossfading .auth-form, .auth-card.crossfading .auth-invite { opacity: 0; }
+/* Кросс-фейд половин — только на узкой ширине, см. @media ниже. На десктопе перехода нет намеренно:
+   работу перехода делает свет (кромка планеты переезжает под другую половину), а затухание половин
+   поверх него давало провал всей карточки в темноту — гасли обе половины разом. Заодно это снимало
+   «поп»: order переставляет половины мгновенно, затухание стартовало позже, и было видно сначала
+   скачок, потом мигание. Нет затухания — нет гонки. Класс .crossfading AuthCard вешает по-прежнему:
+   он нужен мобильной версии, где света нет. Общая константа с доворотом солнца — SWEEP_MS,
+   приезжает в CSS как --sweep, проставленная из JS на .auth. */
+.auth-form, .auth-invite { opacity: 1; }
 /* Высота строки зарезервирована всегда (элемент в DOM есть и без ошибки, см. AuthCard.tsx) —
    появление текста не меняет высоту .field и не сдвигает всё, что ниже по странице (Ruling 10). */
 .field-error { display: block; min-height: 1.3em; line-height: 1.3; font-size: 12.5px; color: var(--error); }
@@ -236,11 +243,17 @@ main { position: relative; padding-bottom: 24px; }
 .btn:disabled { opacity: .6; cursor: progress; }
 
 @media (max-width: 860px) {
+  /* min-height: 0 — на узкой ширине высота не фиксируется намеренно: карточка одноколоночная,
+     приглашение строкой под формой, и резерв под большую форму съел бы экран впустую. */
   .auth-card { grid-template-columns: 1fr; min-height: 0; }
   .auth-form { padding: 28px 24px; }
   .auth-invite { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0 24px 28px; }
   .auth-invite p { font: 400 14px/1.3 var(--body); color: var(--mist); }
   .mode-signup .auth-form, .mode-signup .auth-invite { order: 0; }
+  /* Здесь кросс-фейд нужен: света, который делал бы переход на десктопе, на этой ширине нет.
+     Гонки с order тоже нет — половины местами не меняются (правило выше). */
+  .auth-form, .auth-invite { transition: opacity calc(var(--sweep) * .5) ease; }
+  .auth-card.crossfading .auth-form, .auth-card.crossfading .auth-invite { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .auth-form, .auth-invite { transition: none; }
