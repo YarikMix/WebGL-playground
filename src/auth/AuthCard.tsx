@@ -70,7 +70,11 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCa
               aria-invalid={errors.name ? true : undefined}
               aria-describedby={errors.name ? 'name-error' : undefined}
               onChange={e => setValue('name', e.target.value)} onBlur={() => blurField('name')} />
-            {errors.name && <span id="name-error" className="field-error" role="alert">{errors.name}</span>}
+            {/* Рендерится всегда (не только при ошибке): у .field-error зарезервирована высота
+                строки в CSS, чтобы появление ошибки не двигало форму и не роняло клик по кнопке
+                переключения режима под ней на узком экране (см. Ruling 10, task-6-report.md).
+                Пустой элемент с role="alert" не озвучивается скринридером. */}
+            <span id="name-error" className="field-error" role="alert">{errors.name}</span>
           </label>
         )}
         <label className="field">
@@ -79,7 +83,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCa
             aria-invalid={errors.email ? true : undefined}
             aria-describedby={errors.email ? 'email-error' : undefined}
             onChange={e => setValue('email', e.target.value)} onBlur={() => blurField('email')} />
-          {errors.email && <span id="email-error" className="field-error" role="alert">{errors.email}</span>}
+          <span id="email-error" className="field-error" role="alert">{errors.email}</span>
         </label>
         <label className="field">
           <span>Пароль</span>
@@ -100,7 +104,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCa
               </svg>
             </button>
           </span>
-          {errors.password && <span id="password-error" className="field-error" role="alert">{errors.password}</span>}
+          <span id="password-error" className="field-error" role="alert">{errors.password}</span>
         </label>
         <button className="btn btn-primary" type="submit" disabled={busy}>
           {mode === 'login' ? 'Войти' : 'Создать аккаунт'}

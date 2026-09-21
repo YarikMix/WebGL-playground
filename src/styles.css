@@ -221,7 +221,9 @@ main { position: relative; padding-bottom: 24px; }
 /* Переход половин синхронизирован с довортом планеты — обе стороны читают одну константу
    (SWEEP_MS), а не «примерно 0,6 и 0,7»: см. --sweep, проставленную из JS на .auth. */
 .auth-form, .auth-invite { transition: opacity calc(var(--sweep) * .5) ease, transform var(--sweep) ease; }
-.field-error { font-size: 12.5px; color: var(--error); }
+/* Высота строки зарезервирована всегда (элемент в DOM есть и без ошибки, см. AuthCard.tsx) —
+   появление текста не меняет высоту .field и не сдвигает всё, что ниже по странице (Ruling 10). */
+.field-error { display: block; min-height: 1.3em; line-height: 1.3; font-size: 12.5px; color: var(--error); }
 .field input[aria-invalid="true"] { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
 .auth-aux { margin: 0; padding: 0; font-size: 13px; color: var(--mist); background: none; border: 0; cursor: pointer; text-align: left; }
 .auth-aux:hover { color: var(--ice); }
