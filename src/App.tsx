@@ -85,7 +85,7 @@ export default function App() {
   return (
     <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
       {isAuth
-        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} mode={mode} onModeChange={setMode} onSignIn={onSignIn} />
+        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} mode={mode} onModeChange={setMode} onSignIn={onSignIn} glassOn={glassOn} />
         : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
             motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn}
             session={session} onSignOut={onSignOut} />}

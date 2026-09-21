@@ -40,6 +40,8 @@ export interface CardRect {
   y: number;
   w: number;
   h: number;
+  /** одна большая плита (карточка входа), а не мелкая карточка блокнота — см. GlassCards.tsx */
+  large: boolean;
 }
 
 export interface PlanetGeometry {

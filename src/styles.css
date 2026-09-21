@@ -226,3 +226,14 @@ main { position: relative; padding-bottom: 24px; }
 .auth-aux { margin: 0; padding: 0; font-size: 13px; color: var(--mist); background: none; border: 0; cursor: pointer; text-align: left; }
 .auth-aux:hover { color: var(--ice); }
 .btn:disabled { opacity: .6; cursor: progress; }
+
+@media (max-width: 860px) {
+  .auth-card { grid-template-columns: 1fr; min-height: 0; }
+  .auth-form { padding: 28px 24px; }
+  .auth-invite { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0 24px 28px; }
+  .auth-invite p { font: 400 14px/1.3 var(--body); color: var(--mist); }
+  .mode-signup .auth-form, .mode-signup .auth-invite { order: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-form, .auth-invite { transition: none; }
+}

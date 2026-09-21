@@ -10,13 +10,17 @@ interface AuthCardProps {
   mode: AuthMode;
   onModeChange: (mode: AuthMode) => void;
   onSignIn: (session: Session) => void;
+  /** стекло рисует сцена — карточка становится прозрачной (как у карточек блокнотов) */
+  glass: boolean;
 }
 
 /* Карточка входа/регистрации: две половины (форма и приглашение) стоят в DOM в постоянном
    порядке, а какая из них слева, решает CSS `order` по классу режима на карточке —
    переключение не переставляет узлы и не сбрасывает фокус. Класс `card` обязателен:
-   по нему useSceneLayout находит карточку и отдаёт её в сцену стеклом. */
-export default function AuthCard({ mode, onModeChange, onSignIn }: AuthCardProps) {
+   по нему useSceneLayout находит карточку и отдаёт её в сцену стеклом. Класс `lq` включает
+   правила `.cards-liquid .card.lq` (см. styles.css) — без него DOM-карточка держала бы
+   собственную заливку поверх стеклянной плиты, которую сцена всё равно рисует под ней. */
+export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCardProps) {
   // показ пароля — своё состояние карточки, при смене режима гасится, чтобы пароль
   // не оставался открытым на другой форме
   const [shown, setShown] = useState(false);
@@ -56,7 +60,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn }: AuthCardProps
   };
 
   return (
-    <div className={`card auth-card mode-${mode}`}>
+    <div className={`card auth-card mode-${mode}${glass ? ' lq' : ''}`}>
       <form className="auth-form" noValidate onSubmit={e => { void handleSubmit(e); }}>
         <h1>{mode === 'login' ? 'Вход' : 'Создание аккаунта'}</h1>
         {mode === 'signup' && (

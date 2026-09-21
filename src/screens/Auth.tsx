@@ -14,9 +14,11 @@ interface AuthProps {
   mode: AuthMode;
   onModeChange: (mode: AuthMode) => void;
   onSignIn: (session: Session) => void;
+  /** стекло рисует сцена — карточка становится прозрачной (см. NotebookGrid) */
+  glassOn: boolean;
 }
 
-export default function Auth({ glowRef, cardsRef, limbRef, mode, onModeChange, onSignIn }: AuthProps) {
+export default function Auth({ glowRef, cardsRef, limbRef, mode, onModeChange, onSignIn, glassOn }: AuthProps) {
   return (
     <div className="auth wrap" style={{ '--sweep': `${SWEEP_MS}ms` } as CSSProperties}
       ref={node => { cardsRef.current = node; glowRef.current = node; }}>
@@ -29,7 +31,7 @@ export default function Auth({ glowRef, cardsRef, limbRef, mode, onModeChange, o
         nebulab
       </a>
 
-      <AuthCard mode={mode} onModeChange={onModeChange} onSignIn={onSignIn} />
+      <AuthCard mode={mode} onModeChange={onModeChange} onSignIn={onSignIn} glass={glassOn} />
 
       {/* CSS-диск планеты: фон, пока сцена грузится (и если не загрузится), и источник её геометрии */}
       <div className="limb" ref={limbRef} aria-hidden="true" />

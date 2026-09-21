@@ -34,7 +34,9 @@ export function useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }: LayoutRe
       const cards: CardRect[] = glass && cardsEl
         ? [...cardsEl.querySelectorAll('.card')].map(el => {
             const r = el.getBoundingClientRect();
-            return { x: round(r.left - page.left + r.width / 2), y: round(r.top - page.top + r.height / 2), w: round(r.width), h: round(r.height) };
+            // карточка входа — явный признак у вызывающей стороны, а не вывод из площади
+            // (площадь тоже отличалась бы, но тогда порог был бы завязан на текущие размеры вёрстки)
+            return { x: round(r.left - page.left + r.width / 2), y: round(r.top - page.top + r.height / 2), w: round(r.width), h: round(r.height), large: el.classList.contains('auth-card') };
           })
         : [];
       const cardsBottom = cardsEl ? cardsEl.getBoundingClientRect().bottom - page.top + 60 : 0;
