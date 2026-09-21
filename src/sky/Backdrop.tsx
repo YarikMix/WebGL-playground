@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OUTPUT, PALETTE } from './glsl';
-import type { PlanetGeometry, SceneLayout } from '../types';
+import type { PlanetGeometry, SceneLayout, SunDirection } from '../types';
 
 /* Задний план одной плоскостью: цвет космоса, свечение за заголовком и ореол атмосферы над кромкой.
    Плоскость непрозрачная — так она попадает в буфер преломления three.js, и стёкла карточек
@@ -22,6 +22,7 @@ uniform float uRadius;
 uniform vec2  uGlow;
 uniform vec2  uGlowSize;
 uniform vec2  uFade;
+uniform vec3  uSun;
 varying vec2 vPage;
 ${PALETTE}
 
@@ -34,7 +35,8 @@ void main() {
   vec2 d = vPage - uCenter;
   float dist = length(d);
   float h = max(dist - uRadius, 0.0);
-  float sunSide = pow(max(-d.y / dist, 0.0), 1.5);
+  vec2 sunXY = normalize(uSun.xy + vec2(1e-6));
+  float sunSide = pow(max(dot(normalize(vec2(d.x, -d.y)), sunXY), 0.0), 1.5);
   col += (vec3(0.92, 0.86, 1.0) * 0.85 * exp(-h / 9.0)
         + VIOLET * (0.55 * exp(-h / 34.0) + 0.22 * exp(-h / 110.0))) * sunSide;
 
@@ -49,9 +51,10 @@ interface BackdropProps {
   planet: PlanetGeometry;
   glow: SceneLayout['glow'];
   fade: [number, number];
+  sun: SunDirection;
 }
 
-export default function Backdrop({ width, height, planet, glow, fade }: BackdropProps) {
+export default function Backdrop({ width, height, planet, glow, fade, sun }: BackdropProps) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uCenter: { value: new THREE.Vector2() },
@@ -59,6 +62,7 @@ export default function Backdrop({ width, height, planet, glow, fade }: Backdrop
     uGlow: { value: new THREE.Vector2() },
     uGlowSize: { value: new THREE.Vector2() },
     uFade: { value: new THREE.Vector2() },
+    uSun: { value: new THREE.Vector3() },
   }), []);
 
   useFrame(() => {
@@ -69,6 +73,7 @@ export default function Backdrop({ width, height, planet, glow, fade }: Backdrop
     u.uGlow.value.set(glow.x, glow.y);
     u.uGlowSize.value.set(glow.rx, glow.ry);
     u.uFade.value.set(fade[0], fade[1]);
+    u.uSun.value.set(sun[0], sun[1], sun[2]);
   });
 
   return (

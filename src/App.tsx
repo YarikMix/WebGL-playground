@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, useCallback, useRef, useState, type ReactNod
 import Notebooks from './screens/Notebooks';
 import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
+import { SUN_ORBIT } from './scene-config';
 import type { CardsMode } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
@@ -53,7 +54,8 @@ export default function App() {
 
       <SceneBoundary>
         <Suspense fallback={null}>
-          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} onReady={onSkyReady} onGlassReady={onGlassReady} />}
+          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={0} tickMs={33}
+            onReady={onSkyReady} onGlassReady={onGlassReady} />}
         </Suspense>
       </SceneBoundary>
     </div>

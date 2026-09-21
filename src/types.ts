@@ -22,6 +22,9 @@ export interface NotebookFilter {
 
 export type CardsMode = 'flat' | 'liquid';
 
+/** Направление на солнце в координатах сцены */
+export type SunDirection = [number, number, number];
+
 /** Кусок кода для подсветки: c — комментарий, s — строка, k — ключевое слово, n — число */
 export interface CodeToken {
   text: string;

@@ -2,7 +2,8 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { NOISE, OUTPUT, PALETTE } from './glsl';
-import type { PlanetGeometry } from '../types';
+import { SWEEP_MS } from '../scene-config';
+import type { PlanetGeometry, SunDirection } from '../types';
 
 /* В ветке webgl сфера была аналитической: нормаль восстанавливалась из координат пикселя,
    а вращение подделывалось поворотом координат шума. Здесь это настоящая геометрия:
@@ -27,11 +28,11 @@ const fragmentShader = /* glsl */ `
 uniform float uTime;
 uniform float uRadius;
 uniform vec2  uFade;
+uniform vec3  uSun;
 varying vec3 vDir;
 varying vec3 vNormalW;
 varying vec3 vWorld;
 ${PALETTE}
-const vec3 SUN = vec3(0.0, 0.38, -0.925);            // солнце за планетой, чуть выше горизонта
 ${NOISE}
 
 /* Огни городов: трёхмерная сетка с шагом ~9px, в ячейке не больше одной точки. Видны только
@@ -60,7 +61,8 @@ void main() {
   surface = mix(surface, vec3(0.55, 0.50, 0.82), cover * 0.9);
 
   /* Дневная сторона — узкий серп у кромки */
-  float ndl = dot(n, SUN);
+  vec3 sunDir = normalize(uSun);
+  float ndl = dot(n, sunDir);
   float day = smoothstep(-0.03, 0.12, ndl);
   vec3 dayCol = surface * (0.40 + 2.4 * max(ndl, 0.0));
 
@@ -74,7 +76,8 @@ void main() {
 
   /* Атмосфера изнутри: камера ортографическая, взгляд всегда вдоль Z, поэтому «скольжение» = 1 − n.z */
   float rim = 1.0 - n.z;
-  float sunSide = pow(max(n.y / max(length(n.xy), 1e-4), 0.0), 1.5);
+  vec2 sunXY = normalize(sunDir.xy + vec2(1e-6));
+  float sunSide = pow(max(dot(normalize(n.xy + vec2(1e-6)), sunXY), 0.0), 1.5);
   col += (VIOLET * 0.55 * pow(rim, 5.0) + vec3(0.9, 0.85, 1.0) * 0.8 * pow(rim, 18.0)) * sunSide;
 
   col = mix(col, SPACE, smoothstep(uFade.x, uFade.y, -vWorld.y));   // книзу растворяется в фоне страницы
@@ -86,20 +89,37 @@ interface PlanetProps {
   planet: PlanetGeometry;
   fade: [number, number];
   motion: boolean;
+  sun: SunDirection;
+  spin: number;
 }
 
-export default function Planet({ planet, fade, motion }: PlanetProps) {
+export default function Planet({ planet, fade, motion, sun, spin }: PlanetProps) {
   const mesh = useRef<THREE.Mesh>(null), material = useRef<THREE.ShaderMaterial>(null);
-  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uRadius: { value: 0 }, uFade: { value: new THREE.Vector2() } }), []);
+  const uniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uRadius: { value: 0 },
+    uFade: { value: new THREE.Vector2() },
+    uSun: { value: new THREE.Vector3() },
+  }), []);
+
+  const drift = useRef(0);    // непрерывное вращение планеты
+  const sweep = useRef(0);    // доворот, которым управляет экран
 
   useFrame((state, delta) => {
     const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
     if (!u || !mesh.current) return;
     u.uRadius.value = planet.R;
     u.uFade.value.set(fade[0], fade[1]);
-    if (!motion) return;
-    u.uTime.value = state.clock.elapsedTime;
-    mesh.current.rotateOnWorldAxis(AXIS, -0.0085 * Math.min(delta, 0.1));   // верх диска плывёт слева направо
+    u.uSun.value.set(sun[0], sun[1], sun[2]);
+
+    const d = Math.min(delta, 0.1);
+    // Экспоненциальное сглаживание: не зависит от частоты кадров, за SWEEP_MS проходит ~95% пути
+    sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+    if (motion) {
+      drift.current -= 0.0085 * d;   // верх диска плывёт слева направо
+      u.uTime.value = state.clock.elapsedTime;
+    }
+    mesh.current.setRotationFromAxisAngle(AXIS, drift.current + sweep.current);
   });
 
   return (
