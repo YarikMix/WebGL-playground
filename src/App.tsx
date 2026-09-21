@@ -1,11 +1,8 @@
-import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import TopBar from './components/TopBar';
-import Hero from './components/Hero';
-import NotebookGrid from './components/NotebookGrid';
-import Footer from './components/Footer';
-import { filters, initialNotebooks, loadSetting, saveSetting } from './data';
+import { Component, Suspense, lazy, useCallback, useRef, useState, type ReactNode } from 'react';
+import Notebooks from './screens/Notebooks';
+import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
-import type { CardsMode, FilterId, Notebook } from './types';
+import type { CardsMode } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
@@ -23,10 +20,6 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 }
 
 export default function App() {
-  const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
-  const [active, setActive] = useState<FilterId>('all');
-  const [query, setQuery] = useState('');
-  const [toast, setToast] = useState('');
   const [cards, setCards] = useState<CardsMode>(() => loadSetting('sky-cards-r3f', ['flat', 'liquid'] as const, 'liquid'));
   const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
 
@@ -40,27 +33,8 @@ export default function App() {
   const pageRef = useRef<HTMLDivElement>(null), heroRef = useRef<HTMLElement>(null);
   const limbRef = useRef<HTMLDivElement>(null), gridRef = useRef<HTMLDivElement>(null);
 
-  const shown = useMemo(() => {
-    const test = filters.find(f => f.id === active)?.test ?? (() => true);
-    const q = query.trim().toLowerCase();
-    return notebooks.filter(n => test(n) && (!q || n.title.toLowerCase().includes(q)));
-  }, [notebooks, active, query]);
-
   const wantGlass = cards === 'liquid';
-  const layout = useSceneLayout({ pageRef, heroRef, limbRef, gridRef }, wantGlass, [shown]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(''), 2600);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  const createNotebook = () => {
-    setNotebooks(list => [{ id: Date.now(), title: 'Без названия', cells: 1, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
-    setActive('all');
-    setQuery('');
-    setToast('Блокнот создан');
-  };
+  const layout = useSceneLayout({ pageRef, heroRef, limbRef, gridRef }, wantGlass, []);
 
   const changeCards = (mode: CardsMode) => {
     if (mode !== 'liquid') setGlassReady(false);
@@ -69,37 +43,19 @@ export default function App() {
   };
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
+  const onMotion = (on: boolean) => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); };
 
   const glassOn = wantGlass && glassReady;
   return (
     <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}`} ref={pageRef}>
-      <TopBar query={query} onQuery={setQuery} onProfile={() => setToast('В прототипе профиль не подключён')} />
-      <Hero heroRef={heroRef} limbRef={limbRef} total={notebooks.length} running={notebooks.filter(n => n.run).length}
-        onCreate={createNotebook} onUpload={() => setToast('В прототипе загрузка файлов не подключена')} />
+      <Notebooks heroRef={heroRef} limbRef={limbRef} gridRef={gridRef}
+        motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn} />
+
       <SceneBoundary>
         <Suspense fallback={null}>
           {layout && <Sky layout={layout} motion={motion} glass={wantGlass} onReady={onSkyReady} onGlassReady={onGlassReady} />}
         </Suspense>
       </SceneBoundary>
-
-      <main className="wrap">
-        <h2 className="sr-only">Блокноты</h2>
-        <div className="bar">
-          <div className="chips" role="group" aria-label="Фильтр блокнотов">
-            {filters.map(f => (
-              <button key={f.id} className="chip" type="button" aria-pressed={f.id === active} onClick={() => setActive(f.id)}>
-                {f.label}<span>{notebooks.filter(f.test).length}</span>
-              </button>
-            ))}
-          </div>
-          <span className="sort">Сначала недавно изменённые</span>
-        </div>
-        <NotebookGrid gridRef={gridRef} notebooks={shown} glass={glassOn} onOpen={() => setToast('В прототипе редактор не подключён')} />
-        <Footer cards={cards} onCards={changeCards}
-          motion={motion} onMotion={on => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); }} />
-      </main>
-
-      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }
