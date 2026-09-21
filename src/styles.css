@@ -85,6 +85,12 @@ kbd { font: 500 11px/1 var(--mono); color: var(--mist); padding: 4px 6px; border
   box-shadow: 0 0 0 1px rgba(205, 190, 255, .30), 0 -2px 18px rgba(230, 215, 255, .45), 0 -26px 90px -6px rgba(139, 108, 255, .55), inset 0 30px 60px -30px rgba(190, 160, 255, .35);
   pointer-events: none;
 }
+/* Экран входа: солнце на сцене уходит вбок, и CSS-фолбэк должен светиться сбоку тоже — иначе
+   в момент готовности сцены свет прыгнет с бокового рассвета на кромку главной. */
+.auth-page .limb {
+  background: radial-gradient(ellipse 30% 14% at 86% 6%, rgba(200, 180, 255, .30), transparent 70%), var(--void);
+  box-shadow: 0 0 0 1px rgba(205, 190, 255, .22), 24px -6px 26px rgba(230, 215, 255, .35), 60px -20px 90px -6px rgba(139, 108, 255, .45), inset -40px 30px 70px -40px rgba(190, 160, 255, .35);
+}
 .hero-row { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 28px 40px; }
 .hero-text { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 640px; }
 .eyebrow { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; color: var(--ice); background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); }
@@ -212,6 +218,9 @@ main { position: relative; padding-bottom: 24px; }
 .field-toggle:hover { color: var(--ice); }
 .mode-signup .auth-form { order: 2; }
 .mode-signup .auth-invite { order: 1; }
+/* Переход половин синхронизирован с довортом планеты — обе стороны читают одну константу
+   (SWEEP_MS), а не «примерно 0,6 и 0,7»: см. --sweep, проставленную из JS на .auth. */
+.auth-form, .auth-invite { transition: opacity calc(var(--sweep) * .5) ease, transform var(--sweep) ease; }
 .field-error { font-size: 12.5px; color: var(--error); }
 .field input[aria-invalid="true"] { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
 .auth-aux { margin: 0; padding: 0; font-size: 13px; color: var(--mist); background: none; border: 0; cursor: pointer; text-align: left; }

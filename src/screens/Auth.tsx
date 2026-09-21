@@ -1,6 +1,8 @@
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import AuthCard from '../auth/AuthCard';
+import { SWEEP_MS } from '../scene-config';
 import type { Session } from '../session';
+import type { AuthMode } from '../types';
 
 interface AuthProps {
   /** оба рефа сцены указывают на один и тот же контейнер: он же источник свечения за карточкой,
@@ -8,12 +10,16 @@ interface AuthProps {
   glowRef: RefObject<HTMLElement | null>;
   cardsRef: RefObject<HTMLDivElement | null>;
   limbRef: RefObject<HTMLDivElement | null>;
+  /** режим формы живёт в App: им управляет не только карточка, но и свет сцены */
+  mode: AuthMode;
+  onModeChange: (mode: AuthMode) => void;
   onSignIn: (session: Session) => void;
 }
 
-export default function Auth({ glowRef, cardsRef, limbRef, onSignIn }: AuthProps) {
+export default function Auth({ glowRef, cardsRef, limbRef, mode, onModeChange, onSignIn }: AuthProps) {
   return (
-    <div className="auth wrap" ref={node => { cardsRef.current = node; glowRef.current = node; }}>
+    <div className="auth wrap" style={{ '--sweep': `${SWEEP_MS}ms` } as CSSProperties}
+      ref={node => { cardsRef.current = node; glowRef.current = node; }}>
       <a className="logo" href="#" aria-label="Nebulab — на главную">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="4.2" fill="#b9a4ff" />
@@ -23,7 +29,7 @@ export default function Auth({ glowRef, cardsRef, limbRef, onSignIn }: AuthProps
         nebulab
       </a>
 
-      <AuthCard onSignIn={onSignIn} />
+      <AuthCard mode={mode} onModeChange={onModeChange} onSignIn={onSignIn} />
 
       {/* CSS-диск планеты: фон, пока сцена грузится (и если не загрузится), и источник её геометрии */}
       <div className="limb" ref={limbRef} aria-hidden="true" />

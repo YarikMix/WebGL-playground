@@ -6,6 +6,9 @@ import { useAuthForm } from './useAuthForm';
 import type { Field } from './useAuthForm';
 
 interface AuthCardProps {
+  /** режим живёт в App: им управляет не только карточка, но и свет сцены */
+  mode: AuthMode;
+  onModeChange: (mode: AuthMode) => void;
   onSignIn: (session: Session) => void;
 }
 
@@ -13,8 +16,7 @@ interface AuthCardProps {
    порядке, а какая из них слева, решает CSS `order` по классу режима на карточке —
    переключение не переставляет узлы и не сбрасывает фокус. Класс `card` обязателен:
    по нему useSceneLayout находит карточку и отдаёт её в сцену стеклом. */
-export default function AuthCard({ onSignIn }: AuthCardProps) {
-  const [mode, setMode] = useState<AuthMode>('login');
+export default function AuthCard({ mode, onModeChange, onSignIn }: AuthCardProps) {
   // показ пароля — своё состояние карточки, при смене режима гасится, чтобы пароль
   // не оставался открытым на другой форме
   const [shown, setShown] = useState(false);
@@ -44,7 +46,7 @@ export default function AuthCard({ onSignIn }: AuthCardProps) {
   }, [toast]);
 
   const switchMode = () => {
-    setMode(m => (m === 'login' ? 'signup' : 'login'));
+    onModeChange(mode === 'login' ? 'signup' : 'login');
   };
 
   const handleSubmit = async (e: FormEvent) => {

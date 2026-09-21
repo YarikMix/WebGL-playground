@@ -1,12 +1,12 @@
-import { Component, Suspense, lazy, useCallback, useRef, useState, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Notebooks from './screens/Notebooks';
 import Auth from './screens/Auth';
 import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
-import { SUN_ORBIT } from './scene-config';
+import { SUN_DAWN, SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
 import { clearSession, loadSession, saveSession } from './session';
 import type { Session } from './session';
-import type { CardsMode } from './types';
+import type { AuthMode, CardsMode } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
@@ -31,6 +31,23 @@ export default function App() {
   const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
   const onSignOut = () => { clearSession(); setSession(null); };
 
+  /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
+  const [mode, setMode] = useState<AuthMode>('login');
+
+  /* Тикер разгоняется на время проезда терминатора и возвращается обратно. Эффект реагирует
+     на смену mode, но не должен срабатывать при монтировании — иначе каждое открытие экрана
+     входа зря поднимало бы частоту на SWEEP_MS. При prefers-reduced-motion разгон не включаем
+     вовсе: терминатор двигается на пониженной частоте, глаз не должен ловить перепад скорости. */
+  const [sweeping, setSweeping] = useState(false);
+  const isFirstMode = useRef(true);
+  useEffect(() => {
+    if (isFirstMode.current) { isFirstMode.current = false; return; }
+    if (prefersReducedMotion()) return;
+    setSweeping(true);
+    const timer = setTimeout(() => setSweeping(false), SWEEP_MS);
+    return () => clearTimeout(timer);
+  }, [mode]);
+
   /* Готовность сцены — в два шага, и оба меняют вёрстку только после отрисованного кадра:
      skyReady   — канвас проявляется, CSS-фон гаснет;
      glassReady — DOM-карточки становятся прозрачными. Раньше нельзя: пока шейдер стекла
@@ -44,27 +61,32 @@ export default function App() {
   const wantGlass = cards === 'liquid';
   const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass);
 
-  const changeCards = (mode: CardsMode) => {
-    if (mode !== 'liquid') setGlassReady(false);
-    setCards(mode);
-    saveSetting('sky-cards-r3f', mode);
+  const changeCards = (next: CardsMode) => {
+    if (next !== 'liquid') setGlassReady(false);
+    setCards(next);
+    saveSetting('sky-cards-r3f', next);
   };
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
   const onMotion = (on: boolean) => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); };
 
   const glassOn = wantGlass && glassReady;
+  const isAuth = session === null;
+  const sun = isAuth ? SUN_DAWN : SUN_ORBIT;
+  const spin = isAuth ? (mode === 'signup' ? SWEEP_ANGLE : 0) : 0;
+  const tickMs = sweeping ? 0 : 33;
+
   return (
-    <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}`} ref={pageRef}>
-      {session === null
-        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} onSignIn={onSignIn} />
+    <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
+      {isAuth
+        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} mode={mode} onModeChange={setMode} onSignIn={onSignIn} />
         : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
             motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn}
             session={session} onSignOut={onSignOut} />}
 
       <SceneBoundary>
         <Suspense fallback={null}>
-          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={0} tickMs={33}
+          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={sun} spin={spin} tickMs={tickMs}
             onReady={onSkyReady} onGlassReady={onGlassReady} />}
         </Suspense>
       </SceneBoundary>
