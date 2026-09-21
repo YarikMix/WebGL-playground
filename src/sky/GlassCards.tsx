@@ -71,7 +71,7 @@ function Slab({ card }: { card: CardRect }) {
         samples={large ? 10 : 6}
         color="#ffffff"
         attenuationColor={large ? '#140b33' : undefined}
-        attenuationDistance={large ? 190 : undefined}
+        attenuationDistance={large ? 120 : undefined}
         envMapIntensity={large ? 0.55 : 1}
       />
     </mesh>
