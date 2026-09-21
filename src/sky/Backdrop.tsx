@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OUTPUT, PALETTE } from './glsl';
+import { SWEEP_MS } from '../scene-config';
 import type { PlanetGeometry, SceneLayout, SunDirection } from '../types';
 
 /* Задний план одной плоскостью: цвет космоса, свечение за заголовком и ореол атмосферы над кромкой.
@@ -52,9 +53,10 @@ interface BackdropProps {
   glow: SceneLayout['glow'];
   fade: [number, number];
   sun: SunDirection;
+  spin: number;
 }
 
-export default function Backdrop({ width, height, planet, glow, fade, sun }: BackdropProps) {
+export default function Backdrop({ width, height, planet, glow, fade, sun, spin }: BackdropProps) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uCenter: { value: new THREE.Vector2() },
@@ -65,7 +67,11 @@ export default function Backdrop({ width, height, planet, glow, fade, sun }: Bac
     uSun: { value: new THREE.Vector3() },
   }), []);
 
-  useFrame(() => {
+  // Тот же угол и то же сглаживание, что в Planet.tsx — ореол над кромкой должен ехать
+  // синхронно с ореолом на самой планете, это один и тот же источник света.
+  const sweep = useRef(0);
+
+  useFrame((_, delta) => {
     const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
     if (!u) return;
     u.uCenter.value.set(planet.cx, planet.cy);
@@ -73,7 +79,11 @@ export default function Backdrop({ width, height, planet, glow, fade, sun }: Bac
     u.uGlow.value.set(glow.x, glow.y);
     u.uGlowSize.value.set(glow.rx, glow.ry);
     u.uFade.value.set(fade[0], fade[1]);
-    u.uSun.value.set(sun[0], sun[1], sun[2]);
+
+    const d = Math.min(delta, 0.1);
+    sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+    const c = Math.cos(sweep.current), s = Math.sin(sweep.current);
+    u.uSun.value.set(sun[0] * c - sun[1] * s, sun[0] * s + sun[1] * c, sun[2]);
   });
 
   return (

@@ -73,7 +73,9 @@ export default function App() {
   const glassOn = wantGlass && glassReady;
   const isAuth = session === null;
   const sun = isAuth ? SUN_DAWN : SUN_ORBIT;
-  const spin = isAuth ? (mode === 'signup' ? SWEEP_ANGLE : 0) : 0;
+  /* spin теперь поворачивает не планету, а солнце (Ruling 9, scene-config.ts): ±половина угла,
+     покой входа и покой регистрации симметричны относительно базовой композиции SUN_ORBIT. */
+  const spin = isAuth ? (mode === 'signup' ? SWEEP_ANGLE / 2 : -SWEEP_ANGLE / 2) : 0;
   const tickMs = sweeping ? 0 : 33;
 
   return (

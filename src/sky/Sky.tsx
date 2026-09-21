@@ -77,7 +77,7 @@ export default function Sky({ layout, motion, glass, sun, spin, tickMs, onReady,
         <Redraw signal={layout} />
         <FirstFrame onReady={onReady} />
 
-        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} />
+        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin} />
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
         <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} />
         <Meteor width={width} planet={planet} motion={motion} />
