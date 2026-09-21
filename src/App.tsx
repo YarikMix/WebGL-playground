@@ -28,11 +28,15 @@ export default function App() {
   const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
   const [session, setSession] = useState<Session | null>(() => loadSession());
 
-  const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
-  const onSignOut = () => { clearSession(); setSession(null); };
-
   /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
   const [mode, setMode] = useState<AuthMode>('login');
+
+  const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
+  /* Раньше mode жил внутри AuthCard и сбрасывался сам — поддерево размонтировалось при смене
+     сессии. Теперь mode поднят в App (нужно для света сцены) и переживает выход, поэтому сброс
+     нужно делать явно — иначе после выхода из только что созданного аккаунта видна форма
+     регистрации вместо входа. */
+  const onSignOut = () => { clearSession(); setSession(null); setMode('login'); };
 
   /* Тикер разгоняется на время проезда терминатора и возвращается обратно. Эффект реагирует
      на смену mode, но не должен срабатывать при монтировании — иначе каждое открытие экрана
