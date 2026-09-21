@@ -7,6 +7,8 @@ export type Field = 'name' | 'email' | 'password';
 type Values = Record<Field, string>;
 type Errors = Partial<Record<Field, string>>;
 
+// Строже §4.3: спека требует только «без @», а тут ещё и точка в домене (значит `a@b` отвергается) —
+// осознанно строже спеки, чтобы не пропускать заведомо неполные адреса.
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validate(mode: AuthMode, values: Values): Errors {

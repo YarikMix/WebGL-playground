@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthMode } from '../types';
 import type { Session } from '../session';
+import { SWEEP_MS } from '../scene-config';
 import { useAuthForm } from './useAuthForm';
 import type { Field } from './useAuthForm';
 
@@ -12,6 +13,8 @@ interface AuthCardProps {
   onSignIn: (session: Session) => void;
   /** стекло рисует сцена — карточка становится прозрачной (как у карточек блокнотов) */
   glass: boolean;
+  /** свет переключается мгновенно — кросс-фейд половин тоже мгновенный, без класса .crossfading */
+  reducedMotion: boolean;
 }
 
 /* Карточка входа/регистрации: две половины (форма и приглашение) стоят в DOM в постоянном
@@ -20,7 +23,7 @@ interface AuthCardProps {
    по нему useSceneLayout находит карточку и отдаёт её в сцену стеклом. Класс `lq` включает
    правила `.cards-liquid .card.lq` (см. styles.css) — без него DOM-карточка держала бы
    собственную заливку поверх стеклянной плиты, которую сцена всё равно рисует под ней. */
-export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCardProps) {
+export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedMotion }: AuthCardProps) {
   // показ пароля — своё состояние карточки, при смене режима гасится, чтобы пароль
   // не оставался открытым на другой форме
   const [shown, setShown] = useState(false);
@@ -43,6 +46,22 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCa
     // эффект должен срабатывать только на смену режима
   }, [mode]);
 
+  /* Кросс-фейд половин (§6.1): порядок половин переставляется через CSS `order` мгновенно —
+     свойство order не анимируется, — поэтому вход/выход половин гасит отдельный класс.
+     .crossfading держится первую половину SWEEP_MS (та же константа, что двигает свет
+     в Planet.tsx/Backdrop.tsx — общие часы, см. scene-config.ts): opacity успевает погаснуть
+     за это время и вернуться назад за вторую половину, класс уже снят. При первом рендере
+     эффект не должен срабатывать — гасить нечего, это открытие формы, а не переключение. */
+  const [crossfading, setCrossfading] = useState(false);
+  const isFirstMode = useRef(true);
+  useEffect(() => {
+    if (isFirstMode.current) { isFirstMode.current = false; return; }
+    if (reducedMotion) return;
+    setCrossfading(true);
+    const timer = setTimeout(() => setCrossfading(false), SWEEP_MS / 2);
+    return () => clearTimeout(timer);
+  }, [mode, reducedMotion]);
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(''), 2600);
@@ -60,7 +79,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass }: AuthCa
   };
 
   return (
-    <div className={`card auth-card mode-${mode}${glass ? ' lq' : ''}`}>
+    <div className={`card auth-card mode-${mode}${glass ? ' lq' : ''}${crossfading ? ' crossfading' : ''}`}>
       <form className="auth-form" noValidate onSubmit={e => { void handleSubmit(e); }}>
         <h1>{mode === 'login' ? 'Вход' : 'Создание аккаунта'}</h1>
         {mode === 'signup' && (

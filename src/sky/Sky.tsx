@@ -60,12 +60,15 @@ interface SkyProps {
   glass: boolean;
   sun: SunDirection;
   spin: number;
+  /** непрерывных кадров нет (анимация выключена или `prefers-reduced-motion`) — Planet/Backdrop
+      ставят угол солнца сразу, без сглаживания, чтобы одного заказанного кадра хватило */
+  reducedMotion: boolean;
   tickMs: number;
   onReady: () => void;
   onGlassReady: () => void;
 }
 
-export default function Sky({ layout, motion, glass, sun, spin, tickMs, onReady, onGlassReady }: SkyProps) {
+export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
@@ -75,11 +78,15 @@ export default function Sky({ layout, motion, glass, sun, spin, tickMs, onReady,
         <PixelCamera />
         <Ticker enabled={motion} tickMs={tickMs} />
         <Redraw signal={layout} />
+        {/* Без этого сигнала смена sun/spin не заказывала ни одного кадра при frameloop="demand":
+            свет менялся в uniform-е, но канвас никогда не перерисовывался (CRITICAL финального ревью) */}
+        <Redraw signal={spin} />
         <FirstFrame onReady={onReady} />
 
-        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin} />
+        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin}
+          motion={motion} reducedMotion={reducedMotion} />
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
-        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} />
+        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} />
         <Meteor width={width} planet={planet} motion={motion} />
         {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
       </Canvas>

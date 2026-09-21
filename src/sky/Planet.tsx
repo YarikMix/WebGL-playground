@@ -77,6 +77,7 @@ void main() {
   /* Атмосфера изнутри: камера ортографическая, взгляд всегда вдоль Z, поэтому «скольжение» = 1 − n.z */
   float rim = 1.0 - n.z;
   vec2 sunXY = normalize(sunDir.xy + vec2(1e-6));
+  // У полюса (length(n.xy) ≲ 1e-4) старая и новая формулы sunSide расходятся, но там rim^5/rim^18 — численный ноль
   float sunSide = pow(max(dot(normalize(n.xy + vec2(1e-6)), sunXY), 0.0), 1.5);
   col += (VIOLET * 0.55 * pow(rim, 5.0) + vec3(0.9, 0.85, 1.0) * 0.8 * pow(rim, 18.0)) * sunSide;
 
@@ -91,9 +92,11 @@ interface PlanetProps {
   motion: boolean;
   sun: SunDirection;
   spin: number;
+  /** непрерывных кадров нет — угол ставится сразу же на единственном заказанном кадре */
+  reducedMotion: boolean;
 }
 
-export default function Planet({ planet, fade, motion, sun, spin }: PlanetProps) {
+export default function Planet({ planet, fade, motion, sun, spin, reducedMotion }: PlanetProps) {
   const mesh = useRef<THREE.Mesh>(null), material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -112,8 +115,14 @@ export default function Planet({ planet, fade, motion, sun, spin }: PlanetProps)
     u.uFade.value.set(fade[0], fade[1]);
 
     const d = Math.min(delta, 0.1);
-    // Экспоненциальное сглаживание: не зависит от частоты кадров, за SWEEP_MS проходит ~95% пути
-    sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+    if (!motion || reducedMotion) {
+      // Непрерывных кадров не будет (Ticker выключен или prefers-reduced-motion) — единственный
+      // заказанный через <Redraw signal={spin} /> кадр обязан попасть точно в цель, без сглаживания
+      sweep.current = spin;
+    } else {
+      // Экспоненциальное сглаживание: не зависит от частоты кадров, за SWEEP_MS проходит ~95% пути
+      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+    }
     /* Поворот солнца вокруг Z (в плоскости экрана), а не вращение меша: сфера с неподвижным
        центром при повороте вокруг своей оси сохраняет мировую нормаль в каждом пикселе экрана
        неизменной (сфера переходит сама в себя), поэтому доворот меша не мог сдвинуть ни границу

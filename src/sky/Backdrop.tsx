@@ -54,9 +54,12 @@ interface BackdropProps {
   fade: [number, number];
   sun: SunDirection;
   spin: number;
+  motion: boolean;
+  /** непрерывных кадров нет — угол ставится сразу же на единственном заказанном кадре */
+  reducedMotion: boolean;
 }
 
-export default function Backdrop({ width, height, planet, glow, fade, sun, spin }: BackdropProps) {
+export default function Backdrop({ width, height, planet, glow, fade, sun, spin, motion, reducedMotion }: BackdropProps) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uCenter: { value: new THREE.Vector2() },
@@ -67,8 +70,9 @@ export default function Backdrop({ width, height, planet, glow, fade, sun, spin 
     uSun: { value: new THREE.Vector3() },
   }), []);
 
-  // Тот же угол и то же сглаживание, что в Planet.tsx — ореол над кромкой должен ехать
-  // синхронно с ореолом на самой планете, это один и тот же источник света.
+  // Тот же угол и то же сглаживание (или тот же мгновенный переход при отсутствии непрерывных
+  // кадров), что в Planet.tsx — ореол над кромкой должен ехать синхронно с ореолом на самой
+  // планете, это один и тот же источник света.
   const sweep = useRef(0);
 
   useFrame((_, delta) => {
@@ -81,7 +85,11 @@ export default function Backdrop({ width, height, planet, glow, fade, sun, spin 
     u.uFade.value.set(fade[0], fade[1]);
 
     const d = Math.min(delta, 0.1);
-    sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+    if (!motion || reducedMotion) {
+      sweep.current = spin;
+    } else {
+      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+    }
     const c = Math.cos(sweep.current), s = Math.sin(sweep.current);
     u.uSun.value.set(sun[0] * c - sun[1] * s, sun[0] * s + sun[1] * c, sun[2]);
   });
