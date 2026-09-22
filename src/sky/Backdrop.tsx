@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OUTPUT, PALETTE } from './glsl';
-import { SWEEP_MS } from '../scene-config';
+import { LIGHT_SETTLE_MS } from '../scene-config';
 import type { PlanetGeometry, SceneLayout, SunDirection } from '../types';
 
 /* Задний план одной плоскостью: цвет космоса, свечение за заголовком и ореол атмосферы над кромкой.
@@ -88,7 +88,7 @@ export default function Backdrop({ width, height, planet, glow, fade, sun, spin,
     if (!motion || reducedMotion) {
       sweep.current = spin;
     } else {
-      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (LIGHT_SETTLE_MS / 3000)));
     }
     const c = Math.cos(sweep.current), s = Math.sin(sweep.current);
     u.uSun.value.set(sun[0] * c - sun[1] * s, sun[0] * s + sun[1] * c, sun[2]);

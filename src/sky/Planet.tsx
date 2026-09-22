@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { NOISE, OUTPUT, PALETTE } from './glsl';
-import { SWEEP_MS } from '../scene-config';
+import { LIGHT_SETTLE_MS } from '../scene-config';
 import type { PlanetGeometry, SunDirection } from '../types';
 
 /* В ветке webgl сфера была аналитической: нормаль восстанавливалась из координат пикселя,
@@ -29,6 +29,7 @@ uniform float uTime;
 uniform float uRadius;
 uniform vec2  uFade;
 uniform vec3  uSun;
+uniform float uCityLights;   // 0 гасит огни городов: на экране входа они мерцают сквозь матовое стекло карточки
 varying vec3 vDir;
 varying vec3 vNormalW;
 varying vec3 vWorld;
@@ -70,7 +71,7 @@ void main() {
   float cluster = smoothstep(0.46, 0.62, fbm(q * 26.0 + 9.0));
   float city = land * cluster * (1.0 - cover) * smoothstep(0.06, 0.30, n.z) * cityDots(q);
   vec3 cityTint = mix(vec3(0.77, 0.69, 1.0), vec3(1.0, 0.80, 0.55), step(0.45, noise(q * 40.0 + 2.0)));
-  vec3 nightCol = SPACE + surface * 0.06 + cityTint * city * 0.8;
+  vec3 nightCol = SPACE + surface * 0.06 + cityTint * city * 0.8 * uCityLights;
 
   vec3 col = mix(nightCol, dayCol, day);
 
@@ -94,15 +95,18 @@ interface PlanetProps {
   spin: number;
   /** непрерывных кадров нет — угол ставится сразу же на единственном заказанном кадре */
   reducedMotion: boolean;
+  /** 1 — огни городов как на главной, 0 — погашены (экран входа) */
+  cityLights: number;
 }
 
-export default function Planet({ planet, fade, motion, sun, spin, reducedMotion }: PlanetProps) {
+export default function Planet({ planet, fade, motion, sun, spin, reducedMotion, cityLights }: PlanetProps) {
   const mesh = useRef<THREE.Mesh>(null), material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uRadius: { value: 0 },
     uFade: { value: new THREE.Vector2() },
     uSun: { value: new THREE.Vector3() },
+    uCityLights: { value: 1 },
   }), []);
 
   const drift = useRef(0);    // непрерывное вращение планеты (только текстура — облака, огни)
@@ -113,6 +117,7 @@ export default function Planet({ planet, fade, motion, sun, spin, reducedMotion 
     if (!u || !mesh.current) return;
     u.uRadius.value = planet.R;
     u.uFade.value.set(fade[0], fade[1]);
+    u.uCityLights.value = cityLights;
 
     const d = Math.min(delta, 0.1);
     if (!motion || reducedMotion) {
@@ -120,8 +125,8 @@ export default function Planet({ planet, fade, motion, sun, spin, reducedMotion 
       // заказанный через <Redraw signal={spin} /> кадр обязан попасть точно в цель, без сглаживания
       sweep.current = spin;
     } else {
-      // Экспоненциальное сглаживание: не зависит от частоты кадров, за SWEEP_MS проходит ~95% пути
-      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
+      // Экспоненциальное сглаживание: не зависит от частоты кадров, за LIGHT_SETTLE_MS проходит ~95% пути
+      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (LIGHT_SETTLE_MS / 3000)));
     }
     /* Поворот солнца вокруг Z (в плоскости экрана), а не вращение меша: сфера с неподвижным
        центром при повороте вокруг своей оси сохраняет мировую нормаль в каждом пикселе экрана
