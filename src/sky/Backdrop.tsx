@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OUTPUT, PALETTE } from './glsl';
-import { SWEEP_MS } from '../scene-config';
+import useSunSweep from './useSunSweep';
 import type { PlanetGeometry, SceneLayout, SunDirection } from '../types';
 
 /* Задний план одной плоскостью: цвет космоса, свечение за заголовком и ореол атмосферы над кромкой.
@@ -70,12 +70,11 @@ export default function Backdrop({ width, height, planet, glow, fade, sun, spin,
     uSun: { value: new THREE.Vector3() },
   }), []);
 
-  // Тот же угол и то же сглаживание (или тот же мгновенный переход при отсутствии непрерывных
-  // кадров), что в Planet.tsx — ореол над кромкой должен ехать синхронно с ореолом на самой
-  // планете, это один и тот же источник света.
-  const sweep = useRef(0);
+  // Тот же угол и та же кривая, что в Planet.tsx — ореол над кромкой должен ехать синхронно
+  // с ореолом на самой планете, это один и тот же источник света.
+  const sunAngle = useSunSweep(spin, !motion || reducedMotion);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
     if (!u) return;
     u.uCenter.value.set(planet.cx, planet.cy);
@@ -84,13 +83,8 @@ export default function Backdrop({ width, height, planet, glow, fade, sun, spin,
     u.uGlowSize.value.set(glow.rx, glow.ry);
     u.uFade.value.set(fade[0], fade[1]);
 
-    const d = Math.min(delta, 0.1);
-    if (!motion || reducedMotion) {
-      sweep.current = spin;
-    } else {
-      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
-    }
-    const c = Math.cos(sweep.current), s = Math.sin(sweep.current);
+    const a = sunAngle();
+    const c = Math.cos(a), s = Math.sin(a);
     u.uSun.value.set(sun[0] * c - sun[1] * s, sun[0] * s + sun[1] * c, sun[2]);
   });
 

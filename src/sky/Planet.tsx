@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { NOISE, OUTPUT, PALETTE } from './glsl';
-import { SWEEP_MS } from '../scene-config';
+import useSunSweep from './useSunSweep';
 import type { PlanetGeometry, SunDirection } from '../types';
 
 /* В ветке webgl сфера была аналитической: нормаль восстанавливалась из координат пикселя,
@@ -106,7 +106,10 @@ export default function Planet({ planet, fade, motion, sun, spin, reducedMotion 
   }), []);
 
   const drift = useRef(0);    // непрерывное вращение планеты (только текстура — облака, огни)
-  const sweep = useRef(0);    // сглаженный угол поворота солнца вокруг Z, которым управляет экран
+  /* Угол поворота солнца вокруг Z, которым управляет экран. Идёт по кривой CSS-перехода луны
+     и за то же время (useSunSweep → sweepEase): луна и освещённая сторона планеты стоят на одной
+     доле пути в каждом кадре, а не только в двух точках покоя. */
+  const sunAngle = useSunSweep(spin, !motion || reducedMotion);
 
   useFrame((state, delta) => {
     const u = material.current?.uniforms as typeof uniforms | undefined;   // только так: см. примечание про uniform-ы в glsl.ts
@@ -115,20 +118,13 @@ export default function Planet({ planet, fade, motion, sun, spin, reducedMotion 
     u.uFade.value.set(fade[0], fade[1]);
 
     const d = Math.min(delta, 0.1);
-    if (!motion || reducedMotion) {
-      // Непрерывных кадров не будет (Ticker выключен или prefers-reduced-motion) — единственный
-      // заказанный через <Redraw signal={spin} /> кадр обязан попасть точно в цель, без сглаживания
-      sweep.current = spin;
-    } else {
-      // Экспоненциальное сглаживание: не зависит от частоты кадров, за SWEEP_MS проходит ~95% пути
-      sweep.current += (spin - sweep.current) * (1 - Math.exp(-d / (SWEEP_MS / 3000)));
-    }
     /* Поворот солнца вокруг Z (в плоскости экрана), а не вращение меша: сфера с неподвижным
        центром при повороте вокруг своей оси сохраняет мировую нормаль в каждом пикселе экрана
        неизменной (сфера переходит сама в себя), поэтому доворот меша не мог сдвинуть ни границу
        дня/ночи, ни ореол — только рисунок облаков. Двигать освещённую кромку может только само
        направление на солнце. */
-    const c = Math.cos(sweep.current), s = Math.sin(sweep.current);
+    const a = sunAngle();
+    const c = Math.cos(a), s = Math.sin(a);
     u.uSun.value.set(sun[0] * c - sun[1] * s, sun[0] * s + sun[1] * c, sun[2]);
 
     if (motion) {

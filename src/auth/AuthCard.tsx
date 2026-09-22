@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import type { AuthMode } from '../types';
 import type { Session } from '../session';
 import { SWEEP_MS } from '../scene-config';
+import Moon from './Moon';
 import { useAuthForm } from './useAuthForm';
 import type { Field } from './useAuthForm';
 
@@ -142,12 +143,14 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
         )}
       </form>
 
-      <div className="auth-invite"><div className="auth-moon-face">
-        <p>{displayMode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?'}</p>
-        <button className="btn btn-ghost" type="button" onClick={switchMode}>
-          {displayMode === 'login' ? 'Создать аккаунт' : 'Войти'}
-        </button>
-      </div></div>
+      <Moon>
+        <div className="auth-moon-face">
+          <p>{displayMode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?'}</p>
+          <button className="btn btn-ghost" type="button" onClick={switchMode}>
+            {displayMode === 'login' ? 'Создать аккаунт' : 'Войти'}
+          </button>
+        </div>
+      </Moon>
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
