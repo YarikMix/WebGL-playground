@@ -53,25 +53,25 @@ function Slab({ card }: { card: CardRect }) {
   const large = card.large;
   return (
     <mesh geometry={geometry} position={[card.x, -card.y, DEPTH / 2 + 20]}>
-      {/* Для большой плиты: выше roughness размывает зеркальный блик от PointerLight в
-          широкое мягкое пятно вместо точки почти чистого белого (тот же приём, каким студийный
-          свет смягчают софтбоксом — увеличивают площадь источника, а не гасят его); ниже
-          chromaticAberration и anisotropicBlur — иначе размытый блик того же радиуса начинает
-          заметно радужить и вытягиваться. attenuationColor/-Distance тонируют то, что видно
-          сквозь саму толщу стекла (не блик, а фон позади текста), в тон палитры — это и есть
-          «усилить тонировку стекла» из брифа для контраста приглашения. */}
+      {/* Для большой плиты гасим два механизма, которые на ней работают против нас.
+          Хроматическая аберрация расщепляет каждый точечный источник за стеклом на красную
+          и синюю каёмку — а за карточкой стоят мерцающие звёзды (Stars.tsx, alpha ходит
+          по синусу), и они превращались в пульсирующие цветные точки. Высокая шероховатость
+          раздувала их же в пятна: она была поднята ради блика от PointerLight, но на экране
+          входа этот источник не нужен (см. ниже), поэтому размытие можно вернуть к обычному.
+          У карточек блокнотов всё остаётся как было. */}
       <MeshTransmissionMaterial
         transmissionSampler
         transmission={1}
         thickness={60}
-        roughness={large ? 0.6 : 0.1}
+        roughness={0.1}
         ior={1.4}
-        chromaticAberration={large ? 0.15 : 0.5}
-        anisotropicBlur={large ? 0.1 : 0.3}
-        samples={large ? 10 : 6}
+        chromaticAberration={large ? 0 : 0.5}
+        anisotropicBlur={large ? 0 : 0.3}
+        samples={6}
         color="#ffffff"
         attenuationColor={large ? '#140b33' : undefined}
-        attenuationDistance={large ? 120 : undefined}
+        attenuationDistance={large ? 190 : undefined}
         envMapIntensity={large ? 0.55 : 1}
       />
     </mesh>
@@ -114,6 +114,11 @@ interface GlassCardsProps {
 }
 
 export default function GlassCards({ cards, motion, onReady }: GlassCardsProps) {
+  /* Точечный свет за курсором нужен сетке блокнотов: там блик пробегает по мелким граням.
+     На одной большой плите он превращался в неподвижный яркий шар поверх полей формы — ради
+     его размытия и поднимали шероховатость, а та раздувала звёзды за стеклом в пятна. Проще
+     не зажигать источник там, где он мешает: на экране входа блики даёт карта окружения. */
+  const hasLarge = cards.some(c => c.large);
   return (
     <>
       {/* Окружение рисуется один раз из световых панелей — файлов HDR не нужно.
@@ -127,7 +132,7 @@ export default function GlassCards({ cards, motion, onReady }: GlassCardsProps) 
         <Lightformer form="rect" intensity={0.9} color="#d08bff" position={[0, -8, 4]} scale={[24, 10, 1]} target={[0, 0, 0]} />
         <Lightformer form="rect" intensity={0.6} color="#9d8cff" position={[0, 0, 10]} scale={[30, 30, 1]} target={[0, 0, 0]} />
       </Environment>
-      <PointerLight motion={motion} />
+      {!hasLarge && <PointerLight motion={motion} />}
       {cards.map((card, i) => <Slab key={i} card={card} />)}
       {cards.length > 0 && <FirstFrame onReady={onReady} />}
     </>

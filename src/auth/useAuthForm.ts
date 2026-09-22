@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AuthMode } from '../types';
 import type { Session } from '../session';
 
-const TAKEN = 'taken@nebulab.ru';
+const TAKEN = 'taken@cellestial.ru';
 export type Field = 'name' | 'email' | 'password';
 type Values = Record<Field, string>;
 type Errors = Partial<Record<Field, string>>;
