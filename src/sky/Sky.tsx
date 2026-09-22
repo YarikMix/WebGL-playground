@@ -63,14 +63,12 @@ interface SkyProps {
   /** непрерывных кадров нет (анимация выключена или `prefers-reduced-motion`) — Planet/Backdrop
       ставят угол солнца сразу, без сглаживания, чтобы одного заказанного кадра хватило */
   reducedMotion: boolean;
-  /** 1 — огни городов на ночной стороне как на главной, 0 — погашены (экран входа) */
-  cityLights: number;
   tickMs: number;
   onReady: () => void;
   onGlassReady: () => void;
 }
 
-export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, cityLights, tickMs, onReady, onGlassReady }: SkyProps) {
+export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
@@ -88,7 +86,7 @@ export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, c
         <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin}
           motion={motion} reducedMotion={reducedMotion} />
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
-        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} cityLights={cityLights} />
+        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} />
         <Meteor width={width} planet={planet} motion={motion} />
         {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
       </Canvas>

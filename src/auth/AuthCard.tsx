@@ -37,14 +37,20 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
   const fieldRef = (field: Field) => (field === 'name' ? nameRef : field === 'email' ? emailRef : passwordRef);
 
   // при смене режима (и при первом рендере — тогда это просто открытие формы) — сброс ошибок
+  /* mode меняется сразу — от него едет луна. Содержимое форм переключает displayMode, который
+     отстаёт на половину анимации: подмена случается, когда луна уже наехала на место действия,
+     и наружу выходит уже новая форма. Раньше содержимое менялось в первом же кадре, и переход
+     читался как «всё переименовалось и разъехалось», а не как «луна съела и выпустила». */
+  const [displayMode, setDisplayMode] = useState(mode);
+
   // и фокус на первое поле формы
   useEffect(() => {
     reset();
     setShown(false);
-    (mode === 'signup' ? nameRef : emailRef).current?.focus();
+    (displayMode === 'signup' ? nameRef : emailRef).current?.focus();
     // reset/submit меняются на каждый рендер (хук без useCallback) — сюда их включать не нужно,
     // эффект должен срабатывать только на смену режима
-  }, [mode]);
+  }, [displayMode]);
 
   /* Кросс-фейд половин (§6.1): порядок половин переставляется через CSS `order` мгновенно —
      свойство order не анимируется, — поэтому вход/выход половин гасит отдельный класс.
@@ -58,8 +64,9 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
     if (isFirstMode.current) { isFirstMode.current = false; return; }
     if (reducedMotion) return;
     setCrossfading(true);
-    const timer = setTimeout(() => setCrossfading(false), SWEEP_MS / 2);
-    return () => clearTimeout(timer);
+    const swap = setTimeout(() => setDisplayMode(mode), SWEEP_MS / 2);
+    const done = setTimeout(() => setCrossfading(false), SWEEP_MS * 0.6);   // проявление успевает закончиться к приходу луны, а не после него
+    return () => { clearTimeout(swap); clearTimeout(done); };
   }, [mode, reducedMotion]);
 
   useEffect(() => {
@@ -79,10 +86,10 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
   };
 
   return (
-    <div className={`card auth-card mode-${mode}${glass ? ' lq' : ''}${crossfading ? ' crossfading' : ''}`}>
+    <div className={`card auth-card mode-${mode} show-${displayMode}${glass ? ' lq' : ''}${crossfading ? ' crossfading' : ''}`}>
       <form className="auth-form" noValidate onSubmit={e => { void handleSubmit(e); }}>
-        <h1>{mode === 'login' ? 'Вход' : 'Создание аккаунта'}</h1>
-        {mode === 'signup' && (
+        <h1>{displayMode === 'login' ? 'Вход' : 'Создание аккаунта'}</h1>
+        {displayMode === 'signup' && (
           <label className="field">
             <span>Имя</span>
             <input ref={nameRef} type="text" name="name" autoComplete="name" value={values.name}
@@ -108,7 +115,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
           <span>Пароль</span>
           <span className="field-input">
             <input ref={passwordRef} type={shown ? 'text' : 'password'} name="password" value={values.password}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              autoComplete={displayMode === 'login' ? 'current-password' : 'new-password'}
               aria-invalid={errors.password ? true : undefined}
               aria-describedby={errors.password ? 'password-error' : undefined}
               onChange={e => setValue('password', e.target.value)} onBlur={() => blurField('password')} />
@@ -126,21 +133,21 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
           <span id="password-error" className="field-error" role="alert">{errors.password}</span>
         </label>
         <button className="btn btn-primary" type="submit" disabled={busy}>
-          {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
+          {displayMode === 'login' ? 'Войти' : 'Создать аккаунт'}
         </button>
-        {mode === 'login' && (
+        {displayMode === 'login' && (
           <button type="button" className="auth-aux" onClick={() => setToast('В прототипе восстановление не подключено')}>
             Забыли пароль?
           </button>
         )}
       </form>
 
-      <div className="auth-invite">
-        <p>{mode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?'}</p>
+      <div className="auth-invite"><div className="auth-moon-face">
+        <p>{displayMode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?'}</p>
         <button className="btn btn-ghost" type="button" onClick={switchMode}>
-          {mode === 'login' ? 'Создать аккаунт' : 'Войти'}
+          {displayMode === 'login' ? 'Создать аккаунт' : 'Войти'}
         </button>
-      </div>
+      </div></div>
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

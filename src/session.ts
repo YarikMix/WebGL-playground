@@ -7,7 +7,7 @@ export interface Session {
   name?: string;
 }
 
-const KEY = 'nebulab-session';
+const KEY = 'cellestial-session';
 
 export function loadSession(): Session | null {
   try {

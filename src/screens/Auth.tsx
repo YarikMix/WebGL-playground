@@ -24,13 +24,13 @@ export default function Auth({ glowRef, cardsRef, limbRef, mode, onModeChange, o
   return (
     <div className="auth wrap" style={{ '--sweep': `${SWEEP_MS}ms` } as CSSProperties}
       ref={node => { cardsRef.current = node; glowRef.current = node; }}>
-      <a className="logo" href="#" aria-label="Nebulab — на главную">
+      <a className="logo" href="#" aria-label="Cellestial — на главную">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="4.2" fill="#b9a4ff" />
           <ellipse cx="12" cy="12" rx="10.5" ry="4.2" transform="rotate(-24 12 12)" stroke="#8b6cff" strokeWidth="1.4" fill="none" />
           <circle cx="20.9" cy="7.6" r="1.5" fill="#ece9ff" />
         </svg>
-        nebulab
+        cellestial
       </a>
 
       <AuthCard mode={mode} onModeChange={onModeChange} onSignIn={onSignIn} glass={glassOn} reducedMotion={reducedMotion} />

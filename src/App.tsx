@@ -3,7 +3,7 @@ import Notebooks from './screens/Notebooks';
 import Auth from './screens/Auth';
 import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
-import { LIGHT_SETTLE_MS, SUN_ORBIT, SWEEP_ANGLE } from './scene-config';
+import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
 import { clearSession, loadSession, saveSession } from './session';
 import type { Session } from './session';
 import type { AuthMode, CardsMode } from './types';
@@ -43,9 +43,7 @@ export default function App() {
      регистрации вместо входа. */
   const onSignOut = () => { clearSession(); setSession(null); setMode('login'); };
 
-  /* Тикер разгоняется на время переезда света и возвращается обратно. Длительность — не SWEEP_MS,
-     а LIGHT_SETTLE_MS: форма встаёт на место быстрее, чем успокаивается свет, и если вернуть
-     частоту по форме, вторую половину пути свет пополз бы на 30 кадрах. Эффект реагирует
+  /* Тикер разгоняется на время переезда света и возвращается обратно. Эффект реагирует
      на смену mode, но не должен срабатывать при монтировании — иначе каждое открытие экрана
      входа зря поднимало бы частоту. При prefers-reduced-motion разгон не включаем вовсе:
      свет там встаёт на место мгновенно, разгонять нечего. */
@@ -55,7 +53,7 @@ export default function App() {
     if (isFirstMode.current) { isFirstMode.current = false; return; }
     if (reducedMotion) return;
     setSweeping(true);
-    const timer = setTimeout(() => setSweeping(false), LIGHT_SETTLE_MS);
+    const timer = setTimeout(() => setSweeping(false), SWEEP_MS);
     return () => clearTimeout(timer);
   }, [mode, reducedMotion]);
 
@@ -99,7 +97,7 @@ export default function App() {
 
       <SceneBoundary>
         <Suspense fallback={null}>
-          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={spin} reducedMotion={reducedMotion} cityLights={isAuth ? 0 : 1} tickMs={tickMs}
+          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={spin} reducedMotion={reducedMotion} tickMs={tickMs}
             onReady={onSkyReady} onGlassReady={onGlassReady} />}
         </Suspense>
       </SceneBoundary>

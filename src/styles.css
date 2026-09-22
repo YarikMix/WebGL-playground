@@ -211,27 +211,52 @@ main { position: relative; padding-bottom: 24px; }
    плюс запас: заголовок задан clamp(22px, 3vw, 30px) и упирается в потолок 30px при ширине от 1000px,
    значит 510 — настоящий максимум, а не значение для одного окна. min-height, а не height: если
    сообщение об ошибке однажды перенесётся на две строки, карточка вырастет, а не обрежет текст. */
-.auth-card { display: grid; grid-template-columns: 1fr 1fr; width: min(900px, 100%); min-height: 512px; }
+.auth-card { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: min(900px, 100%); min-height: 512px; }
 /* justify-content: center — лишний воздух на входе делится поровну сверху и снизу, как в половине
    с приглашением, иначе форма висела бы вверху, а под ней зияла пустота в 76px. */
 .auth-form { display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 36px 40px; }
 .auth-form h1 { margin: 0 0 6px; font: 500 clamp(22px, 3vw, 30px)/1.15 var(--display); letter-spacing: -.02em; }
-.auth-invite { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 36px 40px; text-align: center; }
-.auth-invite p { margin: 0; font: 500 18px/1.3 var(--display); letter-spacing: -.01em; }
 .field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: var(--mist); }
 .field-input { position: relative; display: flex; align-items: center; }
 .field input { width: 100%; height: 44px; padding: 0 44px 0 14px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); color: var(--ice); font-size: 15px; transition: border-color .15s, box-shadow .15s; }
 .field input:focus { outline: 0; border-color: rgba(160, 135, 255, .6); box-shadow: 0 0 0 3px rgba(139, 108, 255, .22); }
 .field-toggle { position: absolute; right: 6px; display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: none; color: var(--mist); cursor: pointer; }
 .field-toggle:hover { color: var(--ice); }
-/* Половины меняются местами сдвигом, а не мгновенной перестановкой через `order`. Раньше order
-   переставлял их за один кадр, и анимацию приходилось изображать отдельно — гашением обеих
-   половин, отчего карточка на миг становилась пустой. Сдвиг решает обе беды разом: содержимое
-   видно всю дорогу, пустого кадра нет, и это та же моторика, что у панели в референсе.
-   Каждая половина едет ровно на свою ширину, то есть остаётся внутри карточки. */
+/* Половина с приглашением — не плашка, а луна: белый круг, который при переключении переезжает
+   на другую сторону, накрывая уходящую форму и выпуская из-под себя пришедшую. Так устроен
+   приём в референсе (там это синий прямоугольник), и он же делает правило экрана буквальным:
+   форма стоит в тени, а приглашение — на самом освещённом предмете в кадре.
+   overflow: clip на карточке — луна крупнее половины и не должна вылезать за скругление. */
+.auth-card { overflow: clip; }
+.auth-invite {
+  position: absolute; top: 50%; left: 50%; z-index: 2;
+  width: 420px; aspect-ratio: 1; border-radius: 50%; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center;
+  background: radial-gradient(circle at 34% 28%, #fbfaff, #ddd6f3 52%, #b9b0d6);
+  box-shadow: 0 0 70px -10px rgba(210, 198, 255, .55), inset -26px -22px 60px -30px rgba(90, 70, 150, .55);
+  transform: translate(-50%, -50%) translateX(225px);
+  transition: transform var(--sweep) cubic-bezier(.4, 0, .2, 1);
+}
+/* Луна светлая — текст на ней тёмный, иначе не читается. Это единственное место в макете,
+   где инверсия, и она оправдана: приглашение физически лежит на освещённой поверхности. */
+.auth-invite p { margin: 0; font: 500 19px/1.3 var(--display); letter-spacing: -.01em; color: #1a1330; max-width: 16ch; }
+.auth-invite .btn-ghost { color: #1a1330; background: rgba(26, 19, 48, .08); box-shadow: inset 0 0 0 1px rgba(26, 19, 48, .22); }
+.auth-invite .btn-ghost:hover { background: rgba(26, 19, 48, .14); }
+/* Настоящий слой, а не display: contents: иначе надпись на луне нечем гасить. */
+.auth-moon-face { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+/* Луна едет по `mode` — сразу, с первого кадра. Содержимое (форма и надпись на луне) живёт
+   по `show-*`, который отстаёт на половину анимации: пока луна идёт к цели, содержимое гаснет,
+   под её прикрытием подменяется и проявляется уже на новом месте. Без этого всё переименовывалось
+   в первом кадре и просто разъезжалось — переход читался как перестановка, а не как подмена. */
 .auth-form, .auth-invite { transition: transform var(--sweep) cubic-bezier(.4, 0, .2, 1); }
-.mode-signup .auth-form { transform: translateX(100%); }
-.mode-signup .auth-invite { transform: translateX(-100%); }
+.mode-signup .auth-invite { transform: translate(-50%, -50%) translateX(-225px); }
+.show-signup .auth-form { transform: translateX(100%); }
+
+/* Гашение содержимого на время подмены: уходит за первую четверть, возвращается за последнюю.
+   Луна гасит только надпись на себе — сам круг виден всю дорогу, он и есть то, что «съедает». */
+.auth-form, .auth-moon-face { transition: opacity calc(var(--sweep) * .25) ease; }
+.crossfading .auth-form, .crossfading .auth-moon-face { opacity: 0; }
 /* Кросс-фейд половин — только на узкой ширине, см. @media ниже. На десктопе перехода нет намеренно:
    работу перехода делает свет (кромка планеты переезжает под другую половину), а затухание половин
    поверх него давало провал всей карточки в темноту — гасли обе половины разом. Заодно это снимало
@@ -253,10 +278,15 @@ main { position: relative; padding-bottom: 24px; }
      приглашение строкой под формой, и резерв под большую форму съел бы экран впустую. */
   .auth-card { grid-template-columns: 1fr; min-height: 0; }
   .auth-form { padding: 28px 24px; }
-  .auth-invite { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0 24px 28px; }
-  .auth-invite p { font: 400 14px/1.3 var(--body); color: var(--mist); }
-  /* Колонка одна — сдвигать половины некуда, они просто стоят друг под другом. */
-  .mode-signup .auth-form, .mode-signup .auth-invite { transform: none; }
+  /* Колонка одна — луне негде ездить: она становится обычной строкой под формой. */
+  .auth-invite {
+    position: static; width: auto; aspect-ratio: auto; border-radius: 0; background: none; box-shadow: none;
+    transform: none; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0 24px 28px;
+  }
+  .mode-signup .auth-invite, .show-signup .auth-form { transform: none; }
+  .auth-moon-face { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .auth-invite p { font: 400 14px/1.3 var(--body); color: var(--mist); max-width: none; }
+  .auth-invite .btn-ghost { color: var(--ice); background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--line); }
   /* Здесь кросс-фейд нужен: света, который делал бы переход на десктопе, на этой ширине нет,
      и сдвига половин тоже нет — менять местами нечего. */
   .auth-form, .auth-invite { transition: opacity calc(var(--sweep) * .5) ease; }
