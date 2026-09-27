@@ -1,6 +1,7 @@
 import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Outlet, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { initialNotebooks } from './data';
+import { rewindSteps } from './history-rewind';
 import { insertCell } from './notebook-cells';
 import { useSceneLayout } from './useSceneLayout';
 import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
@@ -28,6 +29,7 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 /* Корневой маршрут: сцена, общее состояние и <Outlet /> для экрана по адресу */
 export default function App() {
   const session = useSession();
+  const router = useRouter();
   const navigate = useNavigate();
   /* Экран — по маршруту: от него зависят сцена (планета, стекло, свет) и класс страницы.
      Берём последний совпавший маршрут, а не location: адрес меняется в начале перехода, а matches —
@@ -64,12 +66,25 @@ export default function App() {
 
   const signIn = useCallback((s: Session) => sessionStore.signIn(s), []);
   /* mode переживает выход (он в корне ради света сцены), поэтому сбрасывается явно — иначе после
-     выхода из только что созданного аккаунта видна форма регистрации вместо входа */
+     выхода из только что созданного аккаунта видна форма регистрации вместо входа.
+     История отматывается к первой записи приложения, и та заменяется на /login: всё, что было до
+     выхода (список, блокноты), оказывается «впереди», а «Назад» с формы уводит с сайта. Иначе «Назад»
+     шёл по этим записям, и охранник каждой возвращал на /login?redirect=… — кнопка будто не работала.
+     Замена — в обработчике popstate: он срабатывает после обработчика истории TanStack (тот подписан
+     раньше, при создании роутера). Охранник записи, куда отмотали, успевает заменить её на
+     /login?redirect=… (редирект — тоже replace), и наша замена идёт следом; а если не успел, роутер
+     его редирект отбросит — он следует редиректу, только если его загрузка последняя. В обоих случаях
+     на месте первой записи остаётся ровно один чистый /login, без redirect */
   const signOut = useCallback(() => {
+    // выход уже идёт: повторный go(-steps) по ещё не обновлённому номеру записи увёл бы с сайта
+    if (!sessionStore.get()) return;
     sessionStore.signOut();
     setMode('login');
-    void navigate({ to: '/login' });
-  }, [navigate]);
+    const steps = rewindSteps(router.history.location.state.__TSR_index);
+    if (steps === 0) { void navigate({ to: '/login', replace: true }); return; }
+    window.addEventListener('popstate', () => { void navigate({ to: '/login', replace: true }); }, { once: true });
+    router.history.go(-steps);
+  }, [router, navigate]);
 
   const createNotebook = useCallback((): number => {
     const id = Date.now();
