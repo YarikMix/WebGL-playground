@@ -77,8 +77,13 @@ export default function App() {
     setNotebooks(list => [{ id, title: 'Без названия', cells, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
     return id;
   }, []);
+  /* Изменённый блокнот поднимается в начало: список подписан «Сначала недавно изменённые», и
+     «только что» в середине списка противоречило бы подписи */
   const setCells = useCallback((id: number, cells: Cell[]) => {
-    setNotebooks(list => list.map(n => (n.id === id ? { ...n, cells, edited: 'только что' } : n)));
+    setNotebooks(list => {
+      const edited = list.find(n => n.id === id);
+      return edited ? [{ ...edited, cells, edited: 'только что' }, ...list.filter(n => n !== edited)] : list;
+    });
   }, []);
 
   /* Тикер разгоняется на время переезда света и возвращается обратно. Эффект реагирует

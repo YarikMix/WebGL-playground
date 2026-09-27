@@ -11,7 +11,9 @@ interface InsertBarProps {
 
 export default function InsertBar({ onAdd, persistent = false, nearSelected = false }: InsertBarProps) {
   return (
-    <div className={`nb-insert${persistent ? ' persistent' : ''}${nearSelected ? ' near-selected' : ''}`}>
+    /* группа с именем: иначе скринридер слышит десятки одинаковых «Код»/«Текст» без контекста */
+    <div className={`nb-insert${persistent ? ' persistent' : ''}${nearSelected ? ' near-selected' : ''}`}
+      role="group" aria-label="Вставить ячейку">
       <button className="nb-add" type="button" onClick={() => onAdd('code')}><Plus />Код</button>
       <button className="nb-add" type="button" onClick={() => onAdd('text')}><Plus />Текст</button>
     </div>

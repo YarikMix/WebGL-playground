@@ -35,7 +35,8 @@ export default function Notebook() {
 
   /* Фокус переносится после того, как React отрисовал новый список: иначе нужной ячейки ещё нет
      в DOM, а удалённая уносит фокус на body. scrollIntoView — отдельно от focus(): фокус сам
-     прокручивает, но без плавности и выравнивания */
+     прокручивает, но без плавности и выравнивания. Оба учитывают scroll-padding страницы
+     (styles.css), поэтому ячейка не уезжает под sticky-шапку */
   useEffect(() => {
     if (focusTarget === null) return;
     const el = focusTarget === 'empty'

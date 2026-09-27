@@ -345,6 +345,15 @@ main { position: relative; padding-bottom: 24px; }
 .nb-toolbar .chip, .nb-add { gap: 6px; }
 
 .nb-main { padding-block: 24px 80px; }
+/* Sticky-шапка закрывает верх окна: без отступа прокрутки новая ячейка (scrollIntoView) и поле,
+   до которого дошли Tab-ом, прятались под ней целиком. 12px — отступ шапки сверху (.top), её высоту
+   пишет NotebookHeader; 24px зазора — в том числе под панель удаления, которая выступает над
+   выбранной ячейкой на 15px.
+   Снизу — небольшой зазор, чтобы ячейка не прилипала к краю окна */
+html:has(.nb-main) {
+  scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 12px + var(--nb-top-h, 140px) + 24px);
+  scroll-padding-bottom: 24px;
+}
 .nb-cells { display: flex; flex-direction: column; }
 
 .nb-cell {

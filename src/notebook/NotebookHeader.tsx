@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
 import NotebookTags from '../components/NotebookTags';
 import { Plus } from './InsertBar';
@@ -16,8 +17,21 @@ interface NotebookHeaderProps {
    пункты без действий — шум, в модуле 1 им нечего делать */
 export default function NotebookHeader({ notebook: n, initials, onSignOut, onAdd }: NotebookHeaderProps) {
   const count = n.cells.length;
+
+  /* Высота шапки — для scroll-padding-top страницы (styles.css). Шапка sticky и закрывает верх окна,
+     а её высота не постоянна: мета переносится на вторую строку в зависимости от ширины окна
+     и названия (138–163px), поэтому число в CSS подошло бы не везде */
+  const header = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = header.current, root = document.documentElement;
+    if (!el) return;
+    const ro = new ResizeObserver(() => root.style.setProperty('--nb-top-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty('--nb-top-h'); };
+  }, []);
+
   return (
-    <header className="top wrap">
+    <header className="top wrap" ref={header}>
       <div className="top-inner nb-top-inner">
         <div className="nb-head">
           <Link className="nb-back" to="/" aria-label="К списку блокнотов">
@@ -41,7 +55,8 @@ export default function NotebookHeader({ notebook: n, initials, onSignOut, onAdd
           </div>
           <button className="avatar" type="button" aria-label="Выйти" onClick={onSignOut}>{initials}</button>
         </div>
-        <div className="nb-toolbar" role="toolbar" aria-label="Добавить ячейку">
+        {/* group, а не toolbar: toolbar обещает навигацию стрелками (roving tabindex), а её здесь нет */}
+        <div className="nb-toolbar" role="group" aria-label="Добавить ячейку">
           <button className="chip" type="button" onClick={() => onAdd('code')}><Plus />Код</button>
           <button className="chip" type="button" onClick={() => onAdd('text')}><Plus />Текст</button>
         </div>
