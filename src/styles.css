@@ -316,7 +316,7 @@ html:has(.nb-main) {
   scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 12px + var(--nb-top-h, 140px) + 24px);
   scroll-padding-bottom: 24px;
 }
-.nb-cells { display: flex; flex-direction: column; }
+.nb-cells { display: flex; flex-direction: column; gap: 16px; }
 
 .nb-cell {
   position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
@@ -336,20 +336,11 @@ html:has(.nb-main) {
 .nb-delete { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--mist); cursor: pointer; }
 .nb-delete:hover { color: #ff9f9f; background: rgba(255, 120, 120, .12); }
 
-/* Полоса «+ Код / + Текст»: на стыке проявляется при наведении и с клавиатуры, после последней ячейки видна всегда */
-.nb-insert { position: relative; display: flex; justify-content: center; align-items: center; gap: 8px; height: 32px; }
-.nb-insert::before { content: ""; position: absolute; left: 16px; right: 16px; top: 50%; height: 1px; background: rgba(160, 135, 255, .35); opacity: 0; transition: opacity .15s; }
-.nb-insert .nb-add { position: relative; opacity: 0; transition: opacity .15s; }
-.nb-insert:hover::before, .nb-insert:focus-within::before { opacity: 1; }
-.nb-insert:hover .nb-add, .nb-insert:focus-within .nb-add, .nb-insert.persistent .nb-add { opacity: 1; }
-.nb-insert.persistent { height: 56px; }
+/* Полоса «+ Код / + Текст» после последней ячейки — в РК 1 ячейки добавляются только в конец */
+.nb-insert { display: flex; justify-content: center; gap: 8px; padding-block: 20px 8px; }
 .nb-add { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(12, 8, 32, .9); color: var(--ice); font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s; }
 .nb-add:hover { border-color: rgba(160, 135, 255, .6); background: rgba(40, 28, 90, .9); }
 /* наведения нет — промежуточные полосы видны только под выбранной ячейкой */
-@media (hover: none) {
-  .nb-insert:not(.persistent):not(.near-selected) .nb-add { visibility: hidden; }
-  .nb-insert.near-selected .nb-add { opacity: 1; }
-}
 
 .nb-empty-actions { display: flex; gap: 8px; margin-top: 6px; }
 
@@ -357,7 +348,7 @@ html:has(.nb-main) {
   .nb-cell { padding: 12px; gap: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .nb-cell, .nb-insert::before, .nb-insert .nb-add, .nb-back, .nb-add { transition: none; }
+  .nb-cell, .nb-back, .nb-add { transition: none; }
 }
 
 @media (max-width: 860px) {

@@ -1,9 +1,9 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import NotebookHeader from '../notebook/NotebookHeader';
 import Cell from '../notebook/Cell';
 import InsertBar, { Plus } from '../notebook/InsertBar';
-import { insertCell, insertionIndex, removeCell } from '../notebook-cells';
+import { insertCell, removeCell } from '../notebook-cells';
 import { parseNotebookId } from '../route-params';
 import { initials } from '../session';
 import { useShell } from '../shell';
@@ -66,7 +66,7 @@ export default function Notebook() {
   return (
     <>
       <NotebookHeader notebook={notebook} initials={initials(session)} onSignOut={signOut}
-        onAdd={kind => add(insertionIndex(cells, selected), kind)} />
+        onAdd={kind => add(cells.length, kind)} />
 
       <main className="wrap nb-main">
         {cells.length === 0 ? (
@@ -80,15 +80,13 @@ export default function Notebook() {
           </div>
         ) : (
           <div className="nb-cells">
-            <InsertBar onAdd={kind => add(0, kind)} nearSelected={cells[0]?.id === selected} />
             {cells.map((cell, i) => (
-              <Fragment key={cell.id}>
-                <Cell cell={cell} index={i} selected={cell.id === selected}
-                  onSelect={() => setSelected(cell.id)} onDelete={() => remove(cell.id)} />
-                {/* после последней ячейки полоса видна всегда — вторая точка входа для добавления */}
-                <InsertBar onAdd={kind => add(i + 1, kind)} persistent={i === cells.length - 1} nearSelected={cell.id === selected} />
-              </Fragment>
+              <Cell key={cell.id} cell={cell} index={i} selected={cell.id === selected}
+                onSelect={() => setSelected(cell.id)} onDelete={() => remove(cell.id)} />
             ))}
+            {/* В MVP РК 1 ячейки добавляются только в конец: полоса после последней ячейки
+                и кнопки в шапке. Вставки между ячейками нет — решение по объёму РК 1 */}
+            <InsertBar onAdd={kind => add(cells.length, kind)} />
           </div>
         )}
       </main>

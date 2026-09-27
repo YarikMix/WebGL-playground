@@ -21,12 +21,6 @@ export function insertCell(cells: readonly Cell[], index: number, kind: CellKind
   return { cells: [...cells.slice(0, at), cell, ...cells.slice(at)], id: cell.id };
 }
 
-/** Куда вставляют кнопки в шапке: после выбранной ячейки, а без выбора (или если её уже нет) — в конец */
-export function insertionIndex(cells: readonly Cell[], selectedId: number | null): number {
-  const i = selectedId === null ? -1 : cells.findIndex(c => c.id === selectedId);
-  return i === -1 ? cells.length : i + 1;
-}
-
 /** Удалить ячейку. Выбор переходит на следующую, а если её нет — на предыдущую: так фокус
     остаётся рядом с местом удаления, а не падает на body */
 export function removeCell(cells: readonly Cell[], id: number): { cells: Cell[]; nextSelected: number | null } {

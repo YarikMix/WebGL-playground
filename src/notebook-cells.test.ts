@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { initialCells, insertCell, insertionIndex, removeCell } from './notebook-cells';
+import { initialCells, insertCell, removeCell } from './notebook-cells';
 import type { Cell } from './types';
 
 const kinds = (cells: readonly Cell[]) => cells.map(c => c.kind);
@@ -48,20 +48,6 @@ describe('insertCell', () => {
     let cells: Cell[] = [];
     for (let i = 0; i < 50; i++) cells = insertCell(cells, 0, 'code').cells;
     expect(new Set(ids(cells)).size).toBe(50);
-  });
-});
-
-describe('insertionIndex', () => {
-  const base = initialCells(4);
-  test('после выбранной', () => {
-    expect(insertionIndex(base, base[1]!.id)).toBe(2);
-    expect(insertionIndex(base, base[3]!.id)).toBe(4);
-  });
-  test('без выбора — в конец', () => {
-    expect(insertionIndex(base, null)).toBe(4);
-  });
-  test('выбранной уже нет — в конец', () => {
-    expect(insertionIndex(base, -1)).toBe(4);
   });
 });
 

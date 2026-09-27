@@ -2,18 +2,13 @@ import type { CellKind } from '../types';
 
 interface InsertBarProps {
   onAdd: (kind: CellKind) => void;
-  /** полоса после последней ячейки — видна всегда, а не только при наведении */
-  persistent?: boolean;
-  /** полоса рядом с выбранной ячейкой — сразу под ней, либо перед первой ячейкой, если выбрана
-      она сама; на тач-экранах (нет наведения) показываются только такие полосы */
-  nearSelected?: boolean;
 }
 
-export default function InsertBar({ onAdd, persistent = false, nearSelected = false }: InsertBarProps) {
+/* Полоса «+ Код / + Текст» после последней ячейки. В РК 1 ячейки добавляются только в конец,
+   поэтому полоса одна и видна всегда */
+export default function InsertBar({ onAdd }: InsertBarProps) {
   return (
-    /* группа с именем: иначе скринридер слышит десятки одинаковых «Код»/«Текст» без контекста */
-    <div className={`nb-insert${persistent ? ' persistent' : ''}${nearSelected ? ' near-selected' : ''}`}
-      role="group" aria-label="Вставить ячейку">
+    <div className="nb-insert" role="group" aria-label="Добавить ячейку в конец">
       <button className="nb-add" type="button" onClick={() => onAdd('code')}><Plus />Код</button>
       <button className="nb-add" type="button" onClick={() => onAdd('text')}><Plus />Текст</button>
     </div>
