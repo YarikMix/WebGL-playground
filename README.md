@@ -6,14 +6,14 @@
 
 | Ветка | Что | Демо |
 |---|---|---|
-| `r3f` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
-| `main` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
+| `main` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
+| `canvas` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
 | `webgl` | архив: чистый WebGL, планета одним фрагментным шейдером | <https://yarikmix.github.io/WebGL-playground/webgl/> |
 
 Старый адрес `/r3f/` перенаправляет в корень с сохранением хеша.
 
-`main` и `webgl` отличаются по сути одним файлом: `git diff main webgl -- sky.js`.
-Ветка `r3f` — отдельное приложение на Vite со своей структурой.
+`canvas` и `webgl` отличаются по сути одним файлом: `git diff canvas webgl -- sky.js`.
+Ветка `main` — отдельное приложение на Vite со своей структурой.
 
 ## Структура
 
@@ -63,7 +63,7 @@
 Канвас и карточки прокручиваются вместе, поэтому координаты стёкол пересчитываются только
 при перестройке сетки (фильтр, поиск, resize), а не при скролле.
 
-Если WebGL недоступен или шейдер не собрался, остаётся статичный CSS-фон из `main`.
+Если WebGL недоступен или шейдер не собрался, остаётся статичный CSS-фон из `canvas`.
 Разрешение канваса ограничено 1.5× от CSS-пикселей: шейдер тяжелее Canvas 2D.
 
 Общее для обеих версий: 30 кадров/с, пауза, когда канвас вне экрана или вкладка
@@ -73,9 +73,9 @@
 
 ## Деплой
 
-`.github/workflows/pages.yml` на каждый push в `main`, `webgl` или `r3f` собирает сайт из трёх
-веток и публикует его в GitHub Pages: `r3f` (приложение) — через `bun test` и `bun run build`
-в корень сайта, `main` (Canvas 2D) — в `/canvas/`, `webgl` — в `/webgl/`; эта ветка (`webgl`)
+`.github/workflows/pages.yml` на каждый push в `canvas`, `webgl` или `main` собирает сайт из трёх
+веток и публикует его в GitHub Pages: `main` (приложение) — через `bun test` и `bun run build`
+в корень сайта, `canvas` (Canvas 2D) — в `/canvas/`, `webgl` — в `/webgl/`; эта ветка (`webgl`)
 лежит в своей подпапке как есть, без сборки. Старый адрес `/r3f/` перенаправляет в корень
 с сохранением хеша. Файл workflow должен совпадать во всех трёх ветках: push запускает его
 из той ветки, в которую пришёл, и устаревшая копия выложит сайт в старой раскладке.
