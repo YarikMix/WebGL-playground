@@ -1,12 +1,12 @@
 name: Deploy to GitHub Pages
 
-# Сайт собирается из трёх веток: r3f (приложение) — в корень, main (Canvas 2D) — в /canvas/,
+# Сайт собирается из трёх веток: main (приложение) — в корень, canvas (Canvas 2D) — в /canvas/,
 # webgl — в /webgl/. Старый адрес /r3f/ ведёт на корень, чтобы не сломать уже розданные ссылки.
 # Файл должен быть одинаковым во всех трёх ветках: push запускает workflow из той ветки,
 # в которую пришёл, и устаревшая копия выложит сайт в старой раскладке.
 on:
   push:
-    branches: [main, webgl, r3f]
+    branches: [main, canvas, webgl]
   workflow_dispatch:
 
 permissions:
@@ -25,18 +25,18 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # r3f — приложение и корень сайта, поэтому сборка обязательна: без неё в корне ничего нет
+      # main — приложение и корень сайта, поэтому сборка обязательна: без неё в корне ничего нет
       # Тесты — перед сборкой: упавший тест останавливает деплой, и на сайте остаётся прежняя версия
-      - name: Checkout r3f
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: r3f
-          path: r3f-src
+          ref: main
+          path: app-src
 
       - uses: oven-sh/setup-bun@v2
 
-      - name: Build r3f
-        working-directory: r3f-src
+      - name: Build main
+        working-directory: app-src
         run: |
           bun install --frozen-lockfile
           bun test
@@ -44,11 +44,11 @@ jobs:
           mkdir -p ../site
           cp -r dist/. ../site/
 
-      - name: Checkout main (Canvas 2D)
+      - name: Checkout canvas (Canvas 2D)
         uses: actions/checkout@v4
         continue-on-error: true
         with:
-          ref: main
+          ref: canvas
           path: site/canvas
 
       - name: Checkout webgl
