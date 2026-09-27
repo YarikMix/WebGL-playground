@@ -1,9 +1,9 @@
 name: Deploy to GitHub Pages
 
-# Сайт собирается из трёх веток: main — в корень, webgl — в /webgl/, r3f — в /r3f/.
-# Так все реализации фона доступны по соседним адресам и их можно сравнить.
+# Сайт собирается из трёх веток: r3f (приложение) — в корень, main (Canvas 2D) — в /canvas/,
+# webgl — в /webgl/. Старый адрес /r3f/ ведёт на корень, чтобы не сломать уже розданные ссылки.
 # Файл должен быть одинаковым во всех трёх ветках: push запускает workflow из той ветки,
-# в которую пришёл, и устаревшая копия выложит сайт без недостающих разделов.
+# в которую пришёл, и устаревшая копия выложит сайт в старой раскладке.
 on:
   push:
     branches: [main, webgl, r3f]
@@ -25,11 +25,31 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout main (Canvas 2D)
+      # r3f — приложение и корень сайта, поэтому сборка обязательна: без неё в корне ничего нет
+      # Тесты — перед сборкой: упавший тест останавливает деплой, и на сайте остаётся прежняя версия
+      - name: Checkout r3f
         uses: actions/checkout@v4
         with:
+          ref: r3f
+          path: r3f-src
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build r3f
+        working-directory: r3f-src
+        run: |
+          bun install --frozen-lockfile
+          bun test
+          bun run build
+          mkdir -p ../site
+          cp -r dist/. ../site/
+
+      - name: Checkout main (Canvas 2D)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
           ref: main
-          path: site
+          path: site/canvas
 
       - name: Checkout webgl
         uses: actions/checkout@v4
@@ -38,29 +58,23 @@ jobs:
           ref: webgl
           path: site/webgl
 
-      # r3f — единственная ветка со сборкой: React + Vite, в сайт попадает только dist
-      - name: Checkout r3f
-        id: r3f
-        uses: actions/checkout@v4
-        continue-on-error: true
-        with:
-          ref: r3f
-          path: r3f-src
-
-      - uses: oven-sh/setup-bun@v2
-        if: steps.r3f.outcome == 'success'
-
-      - name: Build r3f
-        if: steps.r3f.outcome == 'success'
-        working-directory: r3f-src
+      # Старый адрес приложения. Хеш переносится: /r3f/#/notebook/3 → /#/notebook/3
+      - name: Redirect /r3f/ to root
         run: |
-          bun install --frozen-lockfile
-          bun run build
-          mkdir -p ../site/r3f
-          cp -r dist/. ../site/r3f/
+          mkdir -p site/r3f
+          cat > site/r3f/index.html <<'HTML'
+          <!doctype html>
+          <html lang="ru">
+          <meta charset="utf-8">
+          <title>Cellestial</title>
+          <meta http-equiv="refresh" content="0; url=../">
+          <script>location.replace('../' + location.hash)</script>
+          <p><a href="../">Cellestial переехал в корень сайта</a></p>
+          </html>
+          HTML
 
       - name: Drop repository internals
-        run: rm -rf site/.git site/.github site/webgl/.git site/webgl/.github
+        run: rm -rf site/canvas/.git site/canvas/.github site/webgl/.git site/webgl/.github
 
       - uses: actions/configure-pages@v5
 
