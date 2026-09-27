@@ -1,5 +1,6 @@
 import { useMemo, type PointerEvent, type RefObject } from 'react';
 import { Link } from '@tanstack/react-router';
+import NotebookTags from './NotebookTags';
 import { plural, tokenize } from '../data';
 import type { Notebook } from '../types';
 
@@ -26,13 +27,7 @@ function Card({ notebook: n, glass }: CardProps) {
       <div className="card-body">
         <h3>{n.title}</h3>
         <p className="meta">{n.cells.length} {plural(n.cells.length, 'ячейка', 'ячейки', 'ячеек')} · изменён {n.edited}</p>
-        <div className="tags">
-          {n.run
-            ? <span className="tag run"><i className="dot" />Работает · {n.run}</span>
-            : <span className="tag"><i className="dot" />Остановлен</span>}
-          <span className="tag accel">{n.accel}</span>
-          {n.owner && <span className="tag">от {n.owner}</span>}
-        </div>
+        <NotebookTags notebook={n} />
       </div>
     </Link>
   );

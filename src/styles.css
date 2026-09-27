@@ -326,6 +326,74 @@ main { position: relative; padding-bottom: 24px; }
 .auth-aux:hover { color: var(--ice); }
 .btn:disabled { opacity: .6; cursor: progress; }
 
+/* ── Экран блокнота: тихий космос — звёзды без планеты, ячейки на CSS-стекле ── */
+.nb-top-inner { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 10px; }
+.nb-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.nb-back { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--mist); border: 1px solid var(--line); background: rgba(255, 255, 255, .03); transition: color .15s, background .15s; }
+.nb-back:hover { color: var(--ice); background: rgba(255, 255, 255, .06); }
+.nb-logo { flex: none; }
+.nb-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* общий h1 — градиентный заголовок hero; здесь это имя файла в шапке */
+.nb-title h1 {
+  margin: 0; font: 600 16px/1.3 var(--body); letter-spacing: 0;
+  background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--ice);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nb-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.nb-meta .tags { margin: 0; padding: 0; }
+.nb-toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.nb-toolbar .chip, .nb-add { gap: 6px; }
+
+.nb-main { padding-block: 24px 80px; }
+.nb-cells { display: flex; flex-direction: column; }
+
+.nb-cell {
+  position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  border-radius: 18px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow .15s, background .15s;
+}
+.nb-cell:hover { background: var(--glass-hi); }
+.nb-cell.selected { box-shadow: inset 0 0 0 1px rgba(160, 135, 255, .75), 0 0 0 3px rgba(139, 108, 255, .16); }
+.nb-gutter { flex: none; display: flex; align-items: center; gap: 8px; height: 24px; }
+.nb-count { font: 400 12px/1 var(--mono); color: var(--dim); }
+.nb-run { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); color: var(--ice); cursor: pointer; transition: background .15s; }
+.nb-run:hover { background: rgba(139, 108, 255, .4); }
+.nb-input { flex: 1; min-width: 0; height: 24px; padding: 2px 0; resize: none; overflow: hidden; border: 0; outline: 0; background: none; color: var(--ice); cursor: default; }
+.nb-cell-code .nb-input { font: 400 13.5px/20px var(--mono); }
+.nb-cell-text .nb-input { font: 400 15px/20px var(--body); }
+.nb-input::placeholder { color: var(--dim); opacity: 1; }
+.nb-cell-text .nb-input::placeholder { color: var(--mist); }
+/* панель ячейки — только удаление; видна у выбранной */
+.nb-cell-tools { position: absolute; z-index: 2; top: -15px; right: 14px; display: flex; padding: 3px; border-radius: 10px; background: rgba(18, 12, 44, .94); border: 1px solid var(--line); visibility: hidden; }
+.nb-cell.selected .nb-cell-tools { visibility: visible; }
+.nb-delete { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--mist); cursor: pointer; }
+.nb-delete:hover { color: #ff9f9f; background: rgba(255, 120, 120, .12); }
+
+/* Полоса «+ Код / + Текст»: на стыке проявляется при наведении и с клавиатуры, после последней ячейки видна всегда */
+.nb-insert { position: relative; display: flex; justify-content: center; align-items: center; gap: 8px; height: 32px; }
+.nb-insert::before { content: ""; position: absolute; left: 16px; right: 16px; top: 50%; height: 1px; background: rgba(160, 135, 255, .35); opacity: 0; transition: opacity .15s; }
+.nb-insert .nb-add { position: relative; opacity: 0; transition: opacity .15s; }
+.nb-insert:hover::before, .nb-insert:focus-within::before { opacity: 1; }
+.nb-insert:hover .nb-add, .nb-insert:focus-within .nb-add, .nb-insert.persistent .nb-add { opacity: 1; }
+.nb-insert.persistent { height: 56px; }
+.nb-add { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(12, 8, 32, .9); color: var(--ice); font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s; }
+.nb-add:hover { border-color: rgba(160, 135, 255, .6); background: rgba(40, 28, 90, .9); }
+/* наведения нет — промежуточные полосы видны только под выбранной ячейкой */
+@media (hover: none) {
+  .nb-insert:not(.persistent):not(.after-selected) .nb-add { visibility: hidden; }
+  .nb-insert.after-selected .nb-add { opacity: 1; }
+}
+
+.nb-empty-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+@media (max-width: 640px) {
+  .nb-cell { padding: 12px; gap: 10px; }
+  .nb-meta .tags { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nb-cell, .nb-insert::before, .nb-insert .nb-add, .nb-run, .nb-back, .nb-add { transition: none; }
+}
+
 @media (max-width: 860px) {
   /* min-height: 0 — на узкой ширине высота не фиксируется намеренно: карточка одноколоночная,
      приглашение строкой под формой, и резерв под большую форму съел бы экран впустую. */
