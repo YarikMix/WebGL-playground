@@ -26,6 +26,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # r3f — приложение и корень сайта, поэтому сборка обязательна: без неё в корне ничего нет
+      # Тесты — перед сборкой: упавший тест останавливает деплой, и на сайте остаётся прежняя версия
       - name: Checkout r3f
         uses: actions/checkout@v4
         with:
@@ -38,6 +39,7 @@ jobs:
         working-directory: r3f-src
         run: |
           bun install --frozen-lockfile
+          bun test
           bun run build
           mkdir -p ../site
           cp -r dist/. ../site/
