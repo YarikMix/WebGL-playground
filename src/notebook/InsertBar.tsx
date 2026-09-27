@@ -4,13 +4,14 @@ interface InsertBarProps {
   onAdd: (kind: CellKind) => void;
   /** полоса после последней ячейки — видна всегда, а не только при наведении */
   persistent?: boolean;
-  /** стоит под выбранной ячейкой — на тач-экранах (нет наведения) показывается только такая */
-  afterSelected?: boolean;
+  /** полоса рядом с выбранной ячейкой — сразу под ней, либо перед первой ячейкой, если выбрана
+      она сама; на тач-экранах (нет наведения) показываются только такие полосы */
+  nearSelected?: boolean;
 }
 
-export default function InsertBar({ onAdd, persistent = false, afterSelected = false }: InsertBarProps) {
+export default function InsertBar({ onAdd, persistent = false, nearSelected = false }: InsertBarProps) {
   return (
-    <div className={`nb-insert${persistent ? ' persistent' : ''}${afterSelected ? ' after-selected' : ''}`}>
+    <div className={`nb-insert${persistent ? ' persistent' : ''}${nearSelected ? ' near-selected' : ''}`}>
       <button className="nb-add" type="button" onClick={() => onAdd('code')}><Plus />Код</button>
       <button className="nb-add" type="button" onClick={() => onAdd('text')}><Plus />Текст</button>
     </div>

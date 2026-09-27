@@ -380,8 +380,8 @@ main { position: relative; padding-bottom: 24px; }
 .nb-add:hover { border-color: rgba(160, 135, 255, .6); background: rgba(40, 28, 90, .9); }
 /* наведения нет — промежуточные полосы видны только под выбранной ячейкой */
 @media (hover: none) {
-  .nb-insert:not(.persistent):not(.after-selected) .nb-add { visibility: hidden; }
-  .nb-insert.after-selected .nb-add { opacity: 1; }
+  .nb-insert:not(.persistent):not(.near-selected) .nb-add { visibility: hidden; }
+  .nb-insert.near-selected .nb-add { opacity: 1; }
 }
 
 .nb-empty-actions { display: flex; gap: 8px; margin-top: 6px; }

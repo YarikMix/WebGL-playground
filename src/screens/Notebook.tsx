@@ -80,13 +80,13 @@ export default function Notebook() {
           </div>
         ) : (
           <div className="nb-cells">
-            <InsertBar onAdd={kind => add(0, kind)} />
+            <InsertBar onAdd={kind => add(0, kind)} nearSelected={cells[0]?.id === selected} />
             {cells.map((cell, i) => (
               <Fragment key={cell.id}>
                 <Cell cell={cell} index={i} selected={cell.id === selected}
                   onSelect={() => setSelected(cell.id)} onDelete={() => remove(cell.id)} onRun={run} />
                 {/* после последней ячейки полоса видна всегда — вторая точка входа для добавления */}
-                <InsertBar onAdd={kind => add(i + 1, kind)} persistent={i === cells.length - 1} afterSelected={cell.id === selected} />
+                <InsertBar onAdd={kind => add(i + 1, kind)} persistent={i === cells.length - 1} nearSelected={cell.id === selected} />
               </Fragment>
             ))}
           </div>
