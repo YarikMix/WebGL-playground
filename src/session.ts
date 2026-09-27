@@ -2,9 +2,7 @@
    тогда вход просто не сохраняется, но работает. */
 
 export interface Session {
-  email: string;
-  /** Имя вводят только при регистрации; при входе его нет */
-  name?: string;
+  login: string;
 }
 
 const KEY = 'cellestial-session';
@@ -15,9 +13,9 @@ export function loadSession(): Session | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
-    const { email, name } = parsed as Record<string, unknown>;
-    if (typeof email !== 'string' || !email) return null;
-    return typeof name === 'string' && name ? { email, name } : { email };
+    // сессия прошлой версии ({ email, name }) сюда не проходит — человек один раз увидит форму входа
+    const { login } = parsed as Record<string, unknown>;
+    return typeof login === 'string' && login ? { login } : null;
   } catch {
     return null;
   }
@@ -31,12 +29,7 @@ export function clearSession(): void {
   try { localStorage.removeItem(KEY); } catch { /* хранилище заблокировано */ }
 }
 
-/** Инициалы для аватара: из имени, а если его нет — первая буква почты */
+/** Инициалы для аватара: первая буква логина, как «Я» у Colab */
 export function initials(session: Session): string {
-  const name = session.name?.trim();
-  if (name) {
-    const parts = name.split(/\s+/);
-    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
-  }
-  return (session.email[0] ?? '?').toUpperCase();
+  return (session.login[0] ?? '?').toUpperCase();
 }

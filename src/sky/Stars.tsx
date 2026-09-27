@@ -48,7 +48,7 @@ function seeded(seed: number): () => number {
 
 interface StarsProps {
   width: number;
-  planet: PlanetGeometry;
+  planet: PlanetGeometry | null;
   fade: [number, number];
   motion: boolean;
 }
@@ -56,7 +56,9 @@ interface StarsProps {
 export default function Stars({ width, planet, fade, motion }: StarsProps) {
   const group = useRef<THREE.Group>(null), material = useRef<THREE.ShaderMaterial>(null);
   const dpr = useThree(s => s.viewport.dpr);
-  const { cx, cy, R } = planet;
+  /* Без планеты (экран блокнота) звёзды раскладываются вокруг условного центра под нижним краем
+     фона с нулевым радиусом — равномерно по всему небу, без выреза под диск */
+  const { cx, cy, R } = planet ?? { cx: width / 2, cy: fade[1], R: 0 };
 
   const geometry = useMemo(() => {
     const rnd = seeded(20260920);

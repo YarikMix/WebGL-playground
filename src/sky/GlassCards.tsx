@@ -48,11 +48,11 @@ function useSlabGeometry(w: number, h: number): THREE.BufferGeometry {
    на пейзаже формы — задача 6, критерий приёмки. `card.large` — явный признак от вызывающей
    стороны (useSceneLayout ставит его по классу `auth-card`), не вывод из площади: связь с
    размерами конкретной вёрстки была бы такой же хрупкой, но неявной. */
-function Slab({ card }: { card: CardRect }) {
+function Slab({ card, visible }: { card: CardRect; visible: boolean }) {
   const geometry = useSlabGeometry(card.w, card.h);
   const large = card.large;
   return (
-    <mesh geometry={geometry} position={[card.x, -card.y, DEPTH / 2 + 20]}>
+    <mesh geometry={geometry} position={[card.x, -card.y, DEPTH / 2 + 20]} visible={visible}>
       {/* Для большой плиты гасим два механизма, которые на ней работают против нас.
           Хроматическая аберрация расщепляет каждый точечный источник за стеклом на красную
           и синюю каёмку — а за карточкой стоят мерцающие звёзды (Stars.tsx, alpha ходит
@@ -119,6 +119,18 @@ export default function GlassCards({ cards, motion, onReady }: GlassCardsProps) 
      его размытия и поднимали шероховатость, а та раздувала звёзды за стеклом в пятна. Проще
      не зажигать источник там, где он мешает: на экране входа блики даёт карта окружения. */
   const hasLarge = cards.some(c => c.large);
+
+  /* «Тёплая» плита. На экране блокнота карточек нет, но одна плита с последним известным
+     прямоугольником остаётся смонтированной и спрятанной: иначе r3f при размонтировании вызвал бы
+     dispose() у всех MeshTransmissionMaterial, three.js удалил бы их общую программу, и возврат
+     на список снова ждал бы компиляции стекла. Плиты с тем же ключом 0 — один и тот же компонент,
+     поэтому при возврате её материал просто получает новую карточку. Спрятанная плита не рисуется
+     и не попадает в проход преломления; onReady по ней не срабатывает (FirstFrame — только при
+     настоящих карточках). Пока карточек не было ни разу (блокнот открыт по ссылке), нет и плиты. */
+  const lastCard = useRef<CardRect | null>(null);
+  if (cards[0]) lastCard.current = cards[0];
+  const slabs = cards.length > 0 ? cards : lastCard.current ? [lastCard.current] : [];
+
   return (
     <>
       {/* Окружение рисуется один раз из световых панелей — файлов HDR не нужно.
@@ -133,7 +145,7 @@ export default function GlassCards({ cards, motion, onReady }: GlassCardsProps) 
         <Lightformer form="rect" intensity={0.6} color="#9d8cff" position={[0, 0, 10]} scale={[30, 30, 1]} target={[0, 0, 0]} />
       </Environment>
       {!hasLarge && <PointerLight motion={motion} />}
-      {cards.map((card, i) => <Slab key={i} card={card} />)}
+      {slabs.map((card, i) => <Slab key={i} card={card} visible={cards.length > 0} />)}
       {cards.length > 0 && <FirstFrame onReady={onReady} />}
     </>
   );

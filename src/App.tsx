@@ -1,12 +1,14 @@
-import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import Notebooks from './screens/Notebooks';
-import Auth from './screens/Auth';
-import { loadSetting, saveSetting } from './data';
+import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { initialNotebooks } from './data';
+import { insertCell } from './notebook-cells';
 import { useSceneLayout } from './useSceneLayout';
 import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
-import { clearSession, loadSession, saveSession } from './session';
+import { sessionStore, useSession } from './session-store';
+import { ShellContext } from './shell';
+import type { Shell } from './shell';
 import type { Session } from './session';
-import type { AuthMode, CardsMode } from './types';
+import type { AuthMode, Cell, Notebook, SceneScreen } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
@@ -23,25 +25,66 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
   render() { return this.state.failed ? null : this.props.children; }
 }
 
+/* Корневой маршрут: сцена, общее состояние и <Outlet /> для экрана по адресу */
 export default function App() {
-  const [cards, setCards] = useState<CardsMode>(() => loadSetting('sky-cards-r3f', ['flat', 'liquid'] as const, 'liquid'));
-  const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
-  const [session, setSession] = useState<Session | null>(() => loadSession());
+  const session = useSession();
+  const navigate = useNavigate();
+  /* Экран — по маршруту: от него зависят сцена (планета, стекло, свет) и класс страницы.
+     Берём последний совпавший маршрут, а не location: адрес меняется в начале перехода, а matches —
+     в том же рендере, что и <Outlet />, иначе раскладка сцены мерила бы DOM прежнего экрана.
+     id маршрутов: '/login', '/' (список), '/notebook/$id'; при неизвестном адресе остаётся '__root__' */
+  const routeId = useRouterState({ select: s => s.matches.at(-1)?.routeId });
+  const screen: SceneScreen = routeId === '/login' ? 'auth' : routeId === '/notebook/$id' ? 'notebook' : 'list';
 
   /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
   const [mode, setMode] = useState<AuthMode>('login');
 
   /* Единственное место, где читается медиазапрос: прокидывается пропом туда, где непрерывных
      кадров может не быть (Sky/Planet/Backdrop) и куда синхронизирован кросс-фейд половин
-     карточки (AuthCard) — вместо повторного чтения matchMedia в каждом месте. */
-  const reducedMotion = prefersReducedMotion();
+     карточки (AuthCard) — вместо повторного чтения matchMedia в каждом месте. Читается один раз
+     за жизнь страницы: значение уходит в контекст, и новый объект на каждом рендере зря
+     перерисовывал бы все экраны. */
+  const [reducedMotion] = useState(prefersReducedMotion);
 
-  const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
-  /* Раньше mode жил внутри AuthCard и сбрасывался сам — поддерево размонтировалось при смене
-     сессии. Теперь mode поднят в App (нужно для света сцены) и переживает выход, поэтому сброс
-     нужно делать явно — иначе после выхода из только что созданного аккаунта видна форма
-     регистрации вместо входа. */
-  const onSignOut = () => { clearSession(); setSession(null); setMode('login'); };
+  /* Переключателей стекла и анимации больше нет: стекло всегда liquid, анимация включена.
+     prefers-reduced-motion — требование доступности, а не опция, и по-прежнему гасит движение. */
+  const motion = !reducedMotion;
+  const wantGlass = true;
+
+  /* Блокноты и тост живут здесь, а не в экранах: список размонтируется при уходе в блокнот, и только
+     что созданный «Без названия» пропал бы; «Блокнот не найден» показывается уже после ухода с экрана */
+  const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
+  const [toastText, setToastText] = useState('');
+  const toast = useCallback((text: string) => setToastText(text), []);
+  useEffect(() => {
+    if (!toastText) return;
+    const timer = setTimeout(() => setToastText(''), 2600);
+    return () => clearTimeout(timer);
+  }, [toastText]);
+
+  const signIn = useCallback((s: Session) => sessionStore.signIn(s), []);
+  /* mode переживает выход (он в корне ради света сцены), поэтому сбрасывается явно — иначе после
+     выхода из только что созданного аккаунта видна форма регистрации вместо входа */
+  const signOut = useCallback(() => {
+    sessionStore.signOut();
+    setMode('login');
+    void navigate({ to: '/login' });
+  }, [navigate]);
+
+  const createNotebook = useCallback((): number => {
+    const id = Date.now();
+    const cells = insertCell([], 0, 'code').cells;   // как Untitled.ipynb в Colab: одна пустая ячейка кода
+    setNotebooks(list => [{ id, title: 'Без названия', cells, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
+    return id;
+  }, []);
+  /* Изменённый блокнот поднимается в начало: список подписан «Сначала недавно изменённые», и
+     «только что» в середине списка противоречило бы подписи */
+  const setCells = useCallback((id: number, cells: Cell[]) => {
+    setNotebooks(list => {
+      const edited = list.find(n => n.id === id);
+      return edited ? [{ ...edited, cells, edited: 'только что' }, ...list.filter(n => n !== edited)] : list;
+    });
+  }, []);
 
   /* Тикер разгоняется на время переезда света и возвращается обратно. Эффект реагирует
      на смену mode, но не должен срабатывать при монтировании — иначе каждое открытие экрана
@@ -67,40 +110,38 @@ export default function App() {
   const pageRef = useRef<HTMLDivElement>(null), glowRef = useRef<HTMLElement>(null);
   const limbRef = useRef<HTMLDivElement>(null), cardsRef = useRef<HTMLDivElement>(null);
 
-  const wantGlass = cards === 'liquid';
-  const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass);
+  const isAuth = screen === 'auth';
+  const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass, screen);
 
-  const changeCards = (next: CardsMode) => {
-    if (next !== 'liquid') setGlassReady(false);
-    setCards(next);
-    saveSetting('sky-cards-r3f', next);
-  };
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
-  const onMotion = (on: boolean) => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); };
 
   const glassOn = wantGlass && glassReady;
-  const isAuth = session === null;
   /* spin теперь поворачивает не планету, а солнце (Ruling 9, scene-config.ts): ±половина угла,
      покой входа и покой регистрации симметричны относительно базовой композиции SUN_ORBIT.
      Солнце у обоих экранов одно и то же — вход не заводит собственного (SUN_ORBIT). */
   const spin = isAuth ? (mode === 'signup' ? SWEEP_ANGLE / 2 : -SWEEP_ANGLE / 2) : 0;
   const tickMs = sweeping ? 0 : 33;
 
-  return (
-    <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
-      {isAuth
-        ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} mode={mode} onModeChange={setMode} onSignIn={onSignIn} glassOn={glassOn} reducedMotion={reducedMotion} />
-        : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
-            motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn}
-            session={session} onSignOut={onSignOut} />}
+  const shell = useMemo<Shell>(() => ({
+    glowRef, limbRef, cardsRef, glassOn, reducedMotion, session, mode, setMode, signIn, signOut,
+    notebooks, createNotebook, setCells, toast,
+  }), [glassOn, reducedMotion, session, mode, signIn, signOut, notebooks, createNotebook, setCells, toast]);
 
-      <SceneBoundary>
-        <Suspense fallback={null}>
-          {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={spin} reducedMotion={reducedMotion} tickMs={tickMs}
-            onReady={onSkyReady} onGlassReady={onGlassReady} />}
-        </Suspense>
-      </SceneBoundary>
-    </div>
+  return (
+    <ShellContext.Provider value={shell}>
+      <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
+        <Outlet />
+
+        <SceneBoundary>
+          <Suspense fallback={null}>
+            {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={spin} reducedMotion={reducedMotion} tickMs={tickMs}
+              onReady={onSkyReady} onGlassReady={onGlassReady} />}
+          </Suspense>
+        </SceneBoundary>
+
+        {toastText && <div className="toast" role="status">{toastText}</div>}
+      </div>
+    </ShellContext.Provider>
   );
 }

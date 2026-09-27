@@ -25,7 +25,7 @@ interface Flight { t0: number; x: number; y: number; ang: number }
 
 interface MeteorProps {
   width: number;
-  planet: PlanetGeometry;
+  planet: PlanetGeometry | null;
   motion: boolean;
 }
 
@@ -47,7 +47,7 @@ export default function Meteor({ width, planet, motion }: MeteorProps) {
     const { t0, x, y, ang } = f.active;
     const p = (t - t0) / DURATION;
     const hx = x + Math.cos(ang) * FLIGHT * p, hy = y + Math.sin(ang) * FLIGHT * p;   // голова, координаты страницы
-    if (p >= 1 || Math.hypot(hx - planet.cx, hy - planet.cy) < planet.R + 12) {
+    if (p >= 1 || (planet && Math.hypot(hx - planet.cx, hy - planet.cy) < planet.R + 12)) {
       f.active = null; f.next = t + 9 + Math.random() * 14; m.visible = false;
       return;
     }

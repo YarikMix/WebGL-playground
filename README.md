@@ -1,14 +1,16 @@
 # WebGL-playground
 
-Прототип главной страницы сервиса блокнотов (аналог Google Colab) в космической
-стилистике. Репозиторий нужен, чтобы сравнить реализации анимированного фона —
-планеты и звёздного неба.
+Прототип сервиса блокнотов (аналог Google Colab) в космической стилистике: вход, список
+блокнотов и страница блокнота. Репозиторий начинался как сравнение реализаций анимированного
+фона — планеты и звёздного неба; архивные варианты доступны по своим адресам.
 
-| Ветка | Фон | Демо |
+| Ветка | Что | Демо |
 |---|---|---|
-| `main` | Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/> |
-| `webgl` | чистый WebGL, планета одним фрагментным шейдером, без библиотек | <https://yarikmix.github.io/WebGL-playground/webgl/> |
-| `r3f` | официальный React + three.js через react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/r3f/> |
+| `r3f` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
+| `main` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
+| `webgl` | архив: чистый WebGL, планета одним фрагментным шейдером | <https://yarikmix.github.io/WebGL-playground/webgl/> |
+
+Старый адрес `/r3f/` перенаправляет в корень с сохранением хеша.
 
 `main` и `webgl` отличаются по сути одним файлом: `git diff main webgl -- sky.js`.
 Ветка `r3f` — отдельное приложение на Vite со своей структурой.
@@ -20,6 +22,7 @@ bun install
 bun run dev         # разработка
 bun run typecheck   # tsc --noEmit, strict
 bun run build       # проверка типов + сборка в dist/
+bun test          # юнит-тесты (bun:test)
 ```
 
 React закреплён на 19.2: `@react-three/fiber` 9.7 объявляет `react >=19 <19.3`.
@@ -29,8 +32,15 @@ TypeScript 7, `strict` плюс `noUncheckedIndexedAccess`; сборка пад�
 
 | Путь | Что внутри |
 |---|---|
-| `src/App.tsx` | состояние страницы, ленивая загрузка сцены, error boundary вокруг неё |
-| `src/types.ts` | общие типы: блокнот, фильтр, раскладка сцены |
+| `src/App.tsx` | корневой маршрут: сессия, блокноты, тост, общая сцена, `<Outlet />` |
+| `src/router.tsx` | маршруты кодом (`createRootRoute`/`createRoute`), хеш-история, охрана по сессии в `beforeLoad` |
+| `src/session.ts`, `session-store.ts` | сессия: localStorage + внешний стор на `useSyncExternalStore`, хук `useSession()` |
+| `src/route-params.ts` | `parseNotebookId` и `safeRedirect` — разбор того, что приходит из адресной строки |
+| `src/shell.ts` | `ShellContext`/`useShell()` — то, что корень отдаёт экранам вместо пропсов |
+| `src/notebook-cells.ts` | чистые функции над ячейками: стартовый набор, вставка, удаление, место вставки |
+| `src/types.ts` | общие типы: блокнот, ячейка, фильтр, раскладка сцены |
+| `src/screens/` | экраны маршрутов: `Auth`, `Notebooks`, `Notebook` |
+| `src/notebook/` | шапка блокнота, ячейка, полоса вставки между ячейками |
 | `src/components/` | интерфейс: шапка, hero, сетка карточек, подвал |
 | `src/useSceneLayout.ts` | измеряет вёрстку и отдаёт сцене геометрию: центр и радиус планеты, прямоугольники карточек |
 | `src/sky/Sky.tsx` | `<Canvas>`, камера, рендер по требованию на 30 кадров/с |
@@ -39,6 +49,18 @@ TypeScript 7, `strict` плюс `noUncheckedIndexedAccess`; сборка пад�
 | `src/sky/Backdrop.tsx` | фон: цвет космоса, свечение за заголовком, ореол атмосферы |
 | `src/sky/Stars.tsx`, `Meteor.tsx` | звёзды одним `Points` и редкий метеор |
 | `src/sky/GlassCards.tsx` | liquid glass: 3D-плиты с `MeshTransmissionMaterial` из drei |
+
+### Маршруты
+
+| Адрес | Экран | Без сессии | С сессией |
+|---|---|---|---|
+| `…/WebGL-playground/` = `#/` | список блокнотов | → `#/login?redirect=/` | список |
+| `#/login` | вход и регистрация | форма | → `redirect` или `#/` |
+| `#/notebook/$id` | блокнот | → `#/login?redirect=/notebook/$id` | блокнот |
+
+GitHub Pages не отдаёт `index.html` на произвольный путь. Красивые пути (`/WebGL-playground/login`)
+возможны только через трюк с `404.html`, при котором каждая прямая ссылка сначала отвечает статусом
+404. Для прототипа хеш честнее: `createHashHistory()` из `@tanstack/react-router`.
 
 ### Ленивая загрузка сцены
 
@@ -153,5 +175,7 @@ CSS-переход и разгон тикера сцены отключены �
 ## Деплой
 
 `.github/workflows/pages.yml` на каждый push в `main`, `webgl` или `r3f` собирает сайт из трёх
-веток (эту — через `bun run build`) и публикует в GitHub Pages. Файл workflow должен совпадать
-во всех ветках: push запускает его из той ветки, в которую пришёл.
+веток и публикует в GitHub Pages: эта ветка (`r3f`) — через `bun test` и `bun run build`
+в корень сайта, `main` (Canvas 2D) — в `/canvas/`, `webgl` — в `/webgl/`. Старый адрес `/r3f/`
+перенаправляет в корень с сохранением хеша. Файл workflow должен совпадать во всех ветках: push
+запускает его из той ветки, в которую пришёл.

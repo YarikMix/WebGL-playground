@@ -1,33 +1,20 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import TopBar from '../components/TopBar';
 import Hero from '../components/Hero';
 import NotebookGrid from '../components/NotebookGrid';
 import Footer from '../components/Footer';
-import { filters, initialNotebooks } from '../data';
+import { filters } from '../data';
 import { initials } from '../session';
-import type { Session } from '../session';
-import type { CardsMode, FilterId, Notebook } from '../types';
+import { useShell } from '../shell';
+import type { FilterId } from '../types';
 
-interface NotebooksProps {
-  /** glowRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
-  glowRef: RefObject<HTMLElement | null>;
-  limbRef: RefObject<HTMLDivElement | null>;
-  cardsRef: RefObject<HTMLDivElement | null>;
-  motion: boolean;
-  onMotion: (on: boolean) => void;
-  cards: CardsMode;
-  onCards: (mode: CardsMode) => void;
-  /** стекло рисует сцена — карточки становятся прозрачными */
-  glassOn: boolean;
-  session: Session;
-  onSignOut: () => void;
-}
-
-export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion, cards, onCards, glassOn, session, onSignOut }: NotebooksProps) {
-  const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
+export default function Notebooks() {
+  /* glowRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
+  const { glowRef, limbRef, cardsRef, glassOn, session, signOut, notebooks, createNotebook, toast } = useShell();
   const [active, setActive] = useState<FilterId>('all');
   const [query, setQuery] = useState('');
-  const [toast, setToast] = useState('');
+  const navigate = useNavigate();
 
   const shown = useMemo(() => {
     const test = filters.find(f => f.id === active)?.test ?? (() => true);
@@ -35,24 +22,20 @@ export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion
     return notebooks.filter(n => test(n) && (!q || n.title.toLowerCase().includes(q)));
   }, [notebooks, active, query]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(''), 2600);
-    return () => clearTimeout(timer);
-  }, [toast]);
+  /* Хуки выше этой строки: при выходе сессия гаснет на рендер раньше, чем адрес сменится на /login */
+  if (!session) return null;
 
-  const createNotebook = () => {
-    setNotebooks(list => [{ id: Date.now(), title: 'Без названия', cells: 1, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
-    setActive('all');
-    setQuery('');
-    setToast('Блокнот создан');
+  /* Как в Colab: новый блокнот сразу открывается, а не остаётся карточкой в списке */
+  const create = () => {
+    const id = createNotebook();
+    void navigate({ to: '/notebook/$id', params: { id: String(id) } });
   };
 
   return (
     <>
-      <TopBar query={query} onQuery={setQuery} initials={initials(session)} onSignOut={onSignOut} />
+      <TopBar query={query} onQuery={setQuery} initials={initials(session)} onSignOut={signOut} />
       <Hero heroRef={glowRef} limbRef={limbRef} total={notebooks.length} running={notebooks.filter(n => n.run).length}
-        onCreate={createNotebook} onUpload={() => setToast('В прототипе загрузка файлов не подключена')} />
+        onCreate={create} onUpload={() => toast('В прототипе загрузка файлов не подключена')} />
 
       <main className="wrap">
         <h2 className="sr-only">Блокноты</h2>
@@ -66,11 +49,9 @@ export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion
           </div>
           <span className="sort">Сначала недавно изменённые</span>
         </div>
-        <NotebookGrid gridRef={cardsRef} notebooks={shown} glass={glassOn} onOpen={() => setToast('В прототипе редактор не подключён')} />
-        <Footer cards={cards} onCards={onCards} motion={motion} onMotion={onMotion} />
+        <NotebookGrid gridRef={cardsRef} notebooks={shown} glass={glassOn} />
+        <Footer />
       </main>
-
-      {toast && <div className="toast" role="status">{toast}</div>}
     </>
   );
 }

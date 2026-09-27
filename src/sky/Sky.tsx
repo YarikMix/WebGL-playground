@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
 import FirstFrame from './FirstFrame';
@@ -7,7 +7,7 @@ import Planet from './Planet';
 import Stars from './Stars';
 import Meteor from './Meteor';
 import GlassCards from './GlassCards';
-import type { SceneLayout, SunDirection } from '../types';
+import type { PlanetGeometry, SceneLayout, SunDirection } from '../types';
 
 /* Сцена в координатах страницы: X вправо, Y вверх, 1 единица = 1 CSS-пиксель, левый верхний угол
    канваса — (0, 0). Камера ортографическая, поэтому меши встают ровно на свои DOM-места.
@@ -70,6 +70,18 @@ interface SkyProps {
 
 export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
+
+  /* Последняя виденная планета. На экране блокнота Planet и Backdrop не размонтируются, а только
+     прячутся (visible={false}) с этой геометрией: r3f при размонтировании вызывает dispose()
+     у материала, three.js удаляет программу, как только её перестаёт использовать хоть один
+     материал, и возврат на список стоил бы новой компиляции (~230 мс длинной задачи). Спрятанный
+     меш three.js пропускает при обходе сцены — ни отрисовки, ни работы GPU.
+     Запись в ref во время рендера идемпотентна: одно и то же значение при повторном рендере. */
+  const lastPlanet = useRef<{ planet: PlanetGeometry; glow: NonNullable<SceneLayout['glow']> } | null>(null);
+  if (planet && glow) lastPlanet.current = { planet, glow };
+  const shown = lastPlanet.current;
+  const hidden = !(planet && glow);
+
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
       <Canvas flat frameloop="demand" dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'low-power' }}
@@ -83,11 +95,19 @@ export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, t
         <Redraw signal={spin} />
         <FirstFrame onReady={onReady} />
 
-        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin}
-          motion={motion} reducedMotion={reducedMotion} />
+        {/* Без планеты (экран блокнота) не видно ни диска, ни ореола, ни свечения за заголовком —
+            остаются цвет космоса и звёзды. Planet и Backdrop при этом спрятаны, а не размонтированы
+            (см. lastPlanet выше). Пока планеты не было ни разу (сразу открыли блокнот по ссылке),
+            их нет вовсе: компилировать шейдеры, которые, может быть, не понадобятся, незачем */}
+        {shown && <Backdrop width={width} height={height} planet={shown.planet} glow={shown.glow} fade={fade} sun={sun} spin={spin}
+          motion={motion} reducedMotion={reducedMotion} visible={!hidden} />}
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
-        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} />
+        {shown && <Planet planet={shown.planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion}
+          visible={!hidden} />}
         <Meteor width={width} planet={planet} motion={motion} />
+        {/* GlassCards смонтирован всегда: на экране блокнота он получает пустой массив и держит
+            одну спрятанную «тёплую» плиту, чтобы при возврате на список стекло не проходило заново
+            через первую компиляцию (см. GlassCards.tsx) */}
         {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
       </Canvas>
     </div>

@@ -1,14 +1,15 @@
 import { useMemo, type PointerEvent, type RefObject } from 'react';
+import { Link } from '@tanstack/react-router';
+import NotebookTags from './NotebookTags';
 import { plural, tokenize } from '../data';
 import type { Notebook } from '../types';
 
 interface CardProps {
   notebook: Notebook;
   glass: boolean;
-  onOpen: (notebook: Notebook) => void;
 }
 
-function Card({ notebook: n, glass, onOpen }: CardProps) {
+function Card({ notebook: n, glass }: CardProps) {
   const tokens = useMemo(() => tokenize(n.code), [n.code]);
 
   // свечение под курсором: координаты уходят в CSS-переменные, React в этом не участвует
@@ -19,23 +20,16 @@ function Card({ notebook: n, glass, onOpen }: CardProps) {
   };
 
   return (
-    <a className={glass ? 'card lq' : 'card'} href="#" onPointerMove={track}
-      onClick={e => { e.preventDefault(); onOpen(n); }}>
+    <Link className={glass ? 'card lq' : 'card'} to="/notebook/$id" params={{ id: String(n.id) }} onPointerMove={track}>
       <div className="peek" aria-hidden="true">
         {tokens.map((t, i) => (t.cls ? <span key={i} className={t.cls}>{t.text}</span> : t.text))}
       </div>
       <div className="card-body">
         <h3>{n.title}</h3>
-        <p className="meta">{n.cells} {plural(n.cells, 'ячейка', 'ячейки', 'ячеек')} · изменён {n.edited}</p>
-        <div className="tags">
-          {n.run
-            ? <span className="tag run"><i className="dot" />Работает · {n.run}</span>
-            : <span className="tag"><i className="dot" />Остановлен</span>}
-          <span className="tag accel">{n.accel}</span>
-          {n.owner && <span className="tag">от {n.owner}</span>}
-        </div>
+        <p className="meta">{n.cells.length} {plural(n.cells.length, 'ячейка', 'ячейки', 'ячеек')} · изменён {n.edited}</p>
+        <NotebookTags notebook={n} />
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -44,10 +38,9 @@ interface NotebookGridProps {
   notebooks: Notebook[];
   /** стекло рисует сцена — карточка становится прозрачной */
   glass: boolean;
-  onOpen: (notebook: Notebook) => void;
 }
 
-export default function NotebookGrid({ gridRef, notebooks, glass, onOpen }: NotebookGridProps) {
+export default function NotebookGrid({ gridRef, notebooks, glass }: NotebookGridProps) {
   if (!notebooks.length) {
     return (
       <div className="empty">
@@ -62,7 +55,7 @@ export default function NotebookGrid({ gridRef, notebooks, glass, onOpen }: Note
   }
   return (
     <div className="grid" ref={gridRef}>
-      {notebooks.map(n => <Card key={n.id} notebook={n} glass={glass} onOpen={onOpen} />)}
+      {notebooks.map(n => <Card key={n.id} notebook={n} glass={glass} />)}
     </div>
   );
 }
