@@ -29,9 +29,12 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 export default function App() {
   const session = useSession();
   const navigate = useNavigate();
-  /* Экран — по адресу: от него зависят сцена (планета, стекло, свет) и класс страницы */
-  const pathname = useRouterState({ select: s => s.location.pathname });
-  const screen: SceneScreen = pathname === '/login' ? 'auth' : pathname.startsWith('/notebook/') ? 'notebook' : 'list';
+  /* Экран — по маршруту: от него зависят сцена (планета, стекло, свет) и класс страницы.
+     Берём последний совпавший маршрут, а не location: адрес меняется в начале перехода, а matches —
+     в том же рендере, что и <Outlet />, иначе раскладка сцены мерила бы DOM прежнего экрана.
+     id маршрутов: '/login', '/' (список), '/notebook/$id'; при неизвестном адресе остаётся '__root__' */
+  const routeId = useRouterState({ select: s => s.matches.at(-1)?.routeId });
+  const screen: SceneScreen = routeId === '/login' ? 'auth' : routeId === '/notebook/$id' ? 'notebook' : 'list';
 
   /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
   const [mode, setMode] = useState<AuthMode>('login');
