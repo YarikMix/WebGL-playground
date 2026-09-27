@@ -89,15 +89,17 @@ export default function App() {
   const createNotebook = useCallback((): number => {
     const id = Date.now();
     const cells = insertCell([], 0, 'code').cells;   // как Untitled.ipynb в Colab: одна пустая ячейка кода
-    setNotebooks(list => [{ id, title: 'Без названия', cells, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
+    // выполнения в прототипе нет, поэтому в превью — без подсказки «Shift+Enter — запустить»
+    setNotebooks(list => [{ id, title: 'Без названия', cells, code: '# Первая ячейка\n' }, ...list]);
     return id;
   }, []);
-  /* Изменённый блокнот поднимается в начало: список подписан «Сначала недавно изменённые», и
-     «только что» в середине списка противоречило бы подписи */
+  /* Изменённый блокнот поднимается в начало. Подписи «Сначала недавно изменённые» и «изменён …»
+     в РК 1 убраны, но порядок остался прежним: список по-прежнему — недавно изменённые сверху,
+     и тот, с которым только что работали, проще всего найти первым */
   const setCells = useCallback((id: number, cells: Cell[]) => {
     setNotebooks(list => {
-      const edited = list.find(n => n.id === id);
-      return edited ? [{ ...edited, cells, edited: 'только что' }, ...list.filter(n => n !== edited)] : list;
+      const changed = list.find(n => n.id === id);
+      return changed ? [{ ...changed, cells }, ...list.filter(n => n !== changed)] : list;
     });
   }, []);
 

@@ -1,6 +1,6 @@
 import { useMemo, type PointerEvent, type RefObject } from 'react';
 import { Link } from '@tanstack/react-router';
-import NotebookTags from './NotebookTags';
+import NewNotebookButton from './NewNotebookButton';
 import { plural, tokenize } from '../data';
 import type { Notebook } from '../types';
 
@@ -26,8 +26,7 @@ function Card({ notebook: n, glass }: CardProps) {
       </div>
       <div className="card-body">
         <h3>{n.title}</h3>
-        <p className="meta">{n.cells.length} {plural(n.cells.length, 'ячейка', 'ячейки', 'ячеек')} · изменён {n.edited}</p>
-        <NotebookTags notebook={n} />
+        <p className="meta">{n.cells.length} {plural(n.cells.length, 'ячейка', 'ячейки', 'ячеек')}</p>
       </div>
     </Link>
   );
@@ -38,9 +37,13 @@ interface NotebookGridProps {
   notebooks: Notebook[];
   /** стекло рисует сцена — карточка становится прозрачной */
   glass: boolean;
+  /** то же действие, что у кнопки в hero */
+  onCreate: () => void;
 }
 
-export default function NotebookGrid({ gridRef, notebooks, glass }: NotebookGridProps) {
+export default function NotebookGrid({ gridRef, notebooks, glass, onCreate }: NotebookGridProps) {
+  /* Пустой список — не ошибка, а первый экран нового пользователя: фильтров и поиска нет,
+     так что пусто может быть только потому, что блокнотов ещё не создавали */
   if (!notebooks.length) {
     return (
       <div className="empty">
@@ -48,8 +51,9 @@ export default function NotebookGrid({ gridRef, notebooks, glass }: NotebookGrid
           <circle cx="28" cy="28" r="8" fill="#2a1f5c" stroke="#8b6cff" strokeWidth="1.2" />
           <ellipse cx="28" cy="28" rx="25" ry="9" transform="rotate(-20 28 28)" stroke="#6f6990" strokeWidth="1.2" strokeDasharray="3 5" fill="none" />
         </svg>
-        <strong>На этой орбите пусто</strong>
-        <span>Ничего не нашлось. Измените запрос или выберите другой фильтр.</span>
+        <strong>Блокнотов пока нет</strong>
+        <span>Создайте первый — он откроется сразу</span>
+        <NewNotebookButton onClick={onCreate} />
       </div>
     );
   }

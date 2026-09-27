@@ -3,22 +3,8 @@ export interface Notebook {
   title: string;
   /** ячейки; число на карточке — их длина */
   cells: Cell[];
-  /** «3 мин назад», «вчера» — готовая строка, как её отдаст бэкенд */
-  edited: string;
-  /** аптайм рантайма; поля нет — рантайм остановлен */
-  run?: string;
-  accel: 'CPU' | 'T4' | 'A100';
-  /** владелец в родительном падеже («от Ани К.»); поля нет — блокнот свой */
-  owner?: string;
+  /** кусок кода для превью на карточке — украшение, к ячейкам не привязан */
   code: string;
-}
-
-export type FilterId = 'all' | 'mine' | 'shared' | 'running';
-
-export interface NotebookFilter {
-  id: FilterId;
-  label: string;
-  test: (n: Notebook) => boolean;
 }
 
 /** Режим карточки на экране входа: какая форма сейчас показана */

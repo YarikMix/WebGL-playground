@@ -62,7 +62,6 @@ export default function Notebook() {
     setSelected(result.nextSelected);
     setFocusTarget(result.nextSelected ?? 'empty');
   };
-  const run = () => toast('В прототипе выполнение не подключено');
 
   return (
     <>
@@ -85,7 +84,7 @@ export default function Notebook() {
             {cells.map((cell, i) => (
               <Fragment key={cell.id}>
                 <Cell cell={cell} index={i} selected={cell.id === selected}
-                  onSelect={() => setSelected(cell.id)} onDelete={() => remove(cell.id)} onRun={run} />
+                  onSelect={() => setSelected(cell.id)} onDelete={() => remove(cell.id)} />
                 {/* после последней ячейки полоса видна всегда — вторая точка входа для добавления */}
                 <InsertBar onAdd={kind => add(i + 1, kind)} persistent={i === cells.length - 1} nearSelected={cell.id === selected} />
               </Fragment>
