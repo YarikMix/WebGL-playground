@@ -1,6 +1,7 @@
 import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Outlet, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { initialNotebooks } from './data';
+import { rewindSteps } from './history-rewind';
 import { insertCell } from './notebook-cells';
 import { useSceneLayout } from './useSceneLayout';
 import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
@@ -28,6 +29,7 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 /* Корневой маршрут: сцена, общее состояние и <Outlet /> для экрана по адресу */
 export default function App() {
   const session = useSession();
+  const router = useRouter();
   const navigate = useNavigate();
   /* Экран — по маршруту: от него зависят сцена (планета, стекло, свет) и класс страницы.
      Берём последний совпавший маршрут, а не location: адрес меняется в начале перехода, а matches —
@@ -64,25 +66,48 @@ export default function App() {
 
   const signIn = useCallback((s: Session) => sessionStore.signIn(s), []);
   /* mode переживает выход (он в корне ради света сцены), поэтому сбрасывается явно — иначе после
-     выхода из только что созданного аккаунта видна форма регистрации вместо входа */
+     выхода из только что созданного аккаунта видна форма регистрации вместо входа.
+     История отматывается к первой записи приложения, и та заменяется на /login: всё, что было до
+     выхода (список, блокноты), оказывается «впереди», а «Назад» с формы уводит с сайта. Иначе «Назад»
+     шёл по этим записям, и охранник каждой возвращал на /login?redirect=… — кнопка будто не работала.
+     Замена — в обработчике popstate: он срабатывает после обработчика истории TanStack (тот подписан
+     раньше, при создании роутера). Охранник записи, куда отмотали, успевает заменить её на
+     /login?redirect=… (редирект — тоже replace), и наша замена идёт следом; а если не успел, роутер
+     его редирект отбросит — он следует редиректу, только если его загрузка последняя. В обоих случаях
+     на месте первой записи остаётся ровно один чистый /login, без redirect.
+     Страховка — таймер: go() за пределы истории браузер молча игнорирует, popstate не приходит.
+     Без неё сессия уже стёрта, адрес остаётся на охраняемом маршруте, экраны которого без сессии
+     рисуют null (пустое небо), а взведённый обработчик перехватил бы следующий «Назад»/«Вперёд».
+     Номер сверяется с длиной истории заранее (rewindSteps), но и она может не совпасть с тем, что
+     браузер реально хранит, — таймер закрывает остальные случаи */
   const signOut = useCallback(() => {
+    // выход уже идёт: повторный go(-steps) по ещё не обновлённому номеру записи увёл бы с сайта
+    if (!sessionStore.get()) return;
     sessionStore.signOut();
     setMode('login');
-    void navigate({ to: '/login' });
-  }, [navigate]);
+    const toLogin = () => { void navigate({ to: '/login', replace: true }); };
+    const steps = rewindSteps(router.history.location.state.__TSR_index, window.history.length);
+    if (steps === 0) { toLogin(); return; }
+    const onPop = () => { clearTimeout(fallback); toLogin(); };
+    const fallback = setTimeout(() => { window.removeEventListener('popstate', onPop); toLogin(); }, 500);
+    window.addEventListener('popstate', onPop, { once: true });
+    router.history.go(-steps);
+  }, [router, navigate]);
 
   const createNotebook = useCallback((): number => {
     const id = Date.now();
     const cells = insertCell([], 0, 'code').cells;   // как Untitled.ipynb в Colab: одна пустая ячейка кода
-    setNotebooks(list => [{ id, title: 'Без названия', cells, edited: 'только что', accel: 'CPU', code: '# Первая ячейка. Shift+Enter — запустить\n' }, ...list]);
+    // выполнения в прототипе нет, поэтому в превью — без подсказки «Shift+Enter — запустить»
+    setNotebooks(list => [{ id, title: 'Без названия', cells, code: '# Первая ячейка\n' }, ...list]);
     return id;
   }, []);
-  /* Изменённый блокнот поднимается в начало: список подписан «Сначала недавно изменённые», и
-     «только что» в середине списка противоречило бы подписи */
+  /* Изменённый блокнот поднимается в начало. Подписи «Сначала недавно изменённые» и «изменён …»
+     в РК 1 убраны, но порядок остался прежним: список по-прежнему — недавно изменённые сверху,
+     и тот, с которым только что работали, проще всего найти первым */
   const setCells = useCallback((id: number, cells: Cell[]) => {
     setNotebooks(list => {
-      const edited = list.find(n => n.id === id);
-      return edited ? [{ ...edited, cells, edited: 'только что' }, ...list.filter(n => n !== edited)] : list;
+      const changed = list.find(n => n.id === id);
+      return changed ? [{ ...changed, cells }, ...list.filter(n => n !== changed)] : list;
     });
   }, []);
 

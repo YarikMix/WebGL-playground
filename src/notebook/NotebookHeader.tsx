@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
-import NotebookTags from '../components/NotebookTags';
 import { Plus } from './InsertBar';
 import { plural } from '../data';
 import type { CellKind, Notebook } from '../types';
@@ -19,8 +18,8 @@ export default function NotebookHeader({ notebook: n, initials, onSignOut, onAdd
   const count = n.cells.length;
 
   /* Высота шапки — для scroll-padding-top страницы (styles.css). Шапка sticky и закрывает верх окна,
-     а её высота не постоянна: мета переносится на вторую строку в зависимости от ширины окна
-     и названия (138–163px), поэтому число в CSS подошло бы не везде */
+     а её высота зависит от шрифта: пока грузятся веб-шрифты и при увеличенном тексте в браузере
+     она другая (сейчас около 121px), поэтому число в CSS подошло бы не везде */
   const header = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = header.current, root = document.documentElement;
@@ -48,10 +47,7 @@ export default function NotebookHeader({ notebook: n, initials, onSignOut, onAdd
           </Link>
           <div className="nb-title">
             <h1>{n.title}</h1>
-            <div className="nb-meta">
-              <span className="meta">{count} {plural(count, 'ячейка', 'ячейки', 'ячеек')} · изменён {n.edited}</span>
-              <NotebookTags notebook={n} />
-            </div>
+            <p className="meta">{count} {plural(count, 'ячейка', 'ячейки', 'ячеек')}</p>
           </div>
           <button className="avatar" type="button" aria-label="Выйти" onClick={onSignOut}>{initials}</button>
         </div>

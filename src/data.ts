@@ -1,31 +1,20 @@
 /* Данные-примеры и мелкие помощники интерфейса. */
 import { initialCells } from './notebook-cells';
-import type { CodeToken, Notebook, NotebookFilter } from './types';
+import type { CodeToken, Notebook } from './types';
 
 export const initialNotebooks: Notebook[] = [
-  { id: 1, title: 'Fine-tune ruBERT на отзывах', cells: initialCells(21), edited: '3 мин назад', run: '38 мин', accel: 'A100',
+  { id: 1, title: 'Fine-tune ruBERT на отзывах', cells: initialCells(21),
     code: 'from transformers import Trainer\n\ntrainer = Trainer(model=model, args=args,\n    train_dataset=ds["train"])\ntrainer.train()  # эпоха 2 из 3' },
-  { id: 2, title: 'Классификация галактик · CNN', cells: initialCells(34), edited: '12 мин назад', run: '1 ч 12 мин', accel: 'T4',
+  { id: 2, title: 'Классификация галактик · CNN', cells: initialCells(34),
     code: 'import torch\nfrom torchvision import models\n\nmodel = models.resnet34(weights="DEFAULT")\nmodel.fc = torch.nn.Linear(512, 10)' },
-  { id: 3, title: 'Кривые блеска экзопланет · Kepler', cells: initialCells(18), edited: 'вчера', accel: 'CPU', owner: 'Ани К.',
-    code: 'import lightkurve as lk\n\nlc = lk.search_lightcurve("Kepler-10").download()\nflat = lc.flatten(window_length=401)\nflat.fold(period=0.8375).scatter()' },
-  { id: 4, title: 'EDA: логи рантаймов за август', cells: initialCells(27), edited: '2 дня назад', accel: 'CPU',
+  { id: 3, title: 'EDA: логи рантаймов за август', cells: initialCells(27),
     code: 'import polars as pl\n\nlogs = pl.scan_parquet("runtime_logs/*.parquet")\nlogs.group_by("gpu").agg(\n    pl.col("uptime_s").mean())' },
-  { id: 5, title: 'Лабораторная 3 — градиентный спуск', cells: initialCells(15), edited: '4 дня назад', accel: 'CPU',
+  { id: 4, title: 'Лабораторная 3 — градиентный спуск', cells: initialCells(15),
     code: 'def step(w, grad, lr=0.01):\n    return w - lr * grad\n\nfor epoch in range(200):\n    w = step(w, loss_grad(w, X, y))' },
-  { id: 6, title: 'Орбиты спутников Юпитера', cells: initialCells(9), edited: 'неделю назад', accel: 'CPU', owner: 'Тимура Р.',
-    code: 'import numpy as np\nimport matplotlib.pyplot as plt\n\nmoons = {"Io": 1.77, "Europa": 3.55}\nt = np.linspace(0, 16, 2000)  # сутки' },
-  { id: 7, title: 'Бенчмарк: pandas vs polars', cells: initialCells(12), edited: '2 недели назад', accel: 'CPU',
+  { id: 5, title: 'Бенчмарк: pandas vs polars', cells: initialCells(12),
     code: '%%timeit\ndf.groupby("user_id")["amount"].sum()\n\n# polars: 41 ms, pandas: 1.9 s\nresults.append(("groupby", 41, 1900))' },
-  { id: 8, title: 'Черновик без названия', cells: initialCells(3), edited: 'месяц назад', accel: 'CPU',
+  { id: 6, title: 'Черновик без названия', cells: initialCells(3),
     code: '# TODO: проверить гипотезу про выбросы\nimport pandas as pd\n\ndf = pd.read_csv("sample.csv")\ndf.describe()' },
-];
-
-export const filters: NotebookFilter[] = [
-  { id: 'all', label: 'Все', test: () => true },
-  { id: 'mine', label: 'Мои', test: n => !n.owner },
-  { id: 'shared', label: 'Доступные мне', test: n => !!n.owner },
-  { id: 'running', label: 'Работают', test: n => !!n.run },
 ];
 
 export const plural = (n: number, one: string, few: string, many: string): string => {

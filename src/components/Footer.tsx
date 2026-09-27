@@ -3,7 +3,7 @@
 export default function Footer() {
   return (
     <div className="foot">
-      <p className="note">Прототип. Названия блокнотов, рантаймы и квота GPU — примеры, не реальные данные.</p>
+      <p className="note">Прототип. Названия блокнотов — примеры, не реальные данные.</p>
     </div>
   );
 }

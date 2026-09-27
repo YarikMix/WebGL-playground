@@ -24,7 +24,7 @@ export interface Shell {
   notebooks: Notebook[];
   /** создаёт блокнот с одной ячейкой кода и возвращает его id */
   createNotebook: () => number;
-  /** заменяет ячейки блокнота; блокнот становится «изменён только что» */
+  /** заменяет ячейки блокнота; блокнот поднимается в начало списка */
   setCells: (id: number, cells: Cell[]) => void;
   toast: (text: string) => void;
 }
