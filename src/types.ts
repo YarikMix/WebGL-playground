@@ -1,7 +1,8 @@
 export interface Notebook {
   id: number;
   title: string;
-  cells: number;
+  /** ячейки; число на карточке — их длина */
+  cells: Cell[];
   /** «3 мин назад», «вчера» — готовая строка, как её отдаст бэкенд */
   edited: string;
   /** аптайм рантайма; поля нет — рантайм остановлен */
