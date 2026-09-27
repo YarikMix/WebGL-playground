@@ -50,7 +50,8 @@ interface BackdropProps {
   width: number;
   height: number;
   planet: PlanetGeometry;
-  glow: SceneLayout['glow'];
+  // Sky передаёт Backdrop только когда glow не null (см. Sky.tsx) — здесь тип уже сужен
+  glow: NonNullable<SceneLayout['glow']>;
   fade: [number, number];
   sun: SunDirection;
   spin: number;

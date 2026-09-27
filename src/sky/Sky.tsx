@@ -83,11 +83,16 @@ export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, t
         <Redraw signal={spin} />
         <FirstFrame onReady={onReady} />
 
-        <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin}
-          motion={motion} reducedMotion={reducedMotion} />
+        {/* Без планеты (экран блокнота) нет ни диска, ни ореола, ни свечения за заголовком — остаются
+            цвет космоса и звёзды. Программы шейдеров three.js кэширует по исходнику, поэтому при
+            возврате на список Planet и Backdrop не компилируются заново */}
+        {planet && glow && <Backdrop width={width} height={height} planet={planet} glow={glow} fade={fade} sun={sun} spin={spin}
+          motion={motion} reducedMotion={reducedMotion} />}
         <Stars width={width} planet={planet} fade={fade} motion={motion} />
-        <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} />
+        {planet && <Planet planet={planet} fade={fade} motion={motion} sun={sun} spin={spin} reducedMotion={reducedMotion} />}
         <Meteor width={width} planet={planet} motion={motion} />
+        {/* GlassCards смонтирован всегда: на экране блокнота он получает пустой массив, и при возврате
+            на список стекло не проходит заново через первую компиляцию */}
         {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
       </Canvas>
     </div>

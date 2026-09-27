@@ -20,8 +20,6 @@ export interface NotebookFilter {
   test: (n: Notebook) => boolean;
 }
 
-export type CardsMode = 'flat' | 'liquid';
-
 /** Режим карточки на экране входа: какая форма сейчас показана */
 export type AuthMode = 'login' | 'signup';
 
@@ -56,10 +54,15 @@ export interface SceneLayout {
   height: number;
   /** по Y: где фон начинает и заканчивает растворяться в цвете страницы */
   fade: [number, number];
-  planet: PlanetGeometry;
-  glow: { x: number; y: number; rx: number; ry: number };
+  /** null — на экране нет планеты (экран блокнота): сцена рисует только звёзды */
+  planet: PlanetGeometry | null;
+  /** свечение за заголовком; привязано к планете, поэтому null вместе с ней */
+  glow: { x: number; y: number; rx: number; ry: number } | null;
   cards: CardRect[];
 }
+
+/** Какой экран сейчас на странице — от него зависит, что сцена рисует и когда пересчитывать раскладку */
+export type SceneScreen = 'auth' | 'list' | 'notebook';
 
 export type CellKind = 'code' | 'text';
 

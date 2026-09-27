@@ -46,14 +46,3 @@ export function tokenize(code: string): CodeToken[] {
   if (last < code.length) parts.push({ text: code.slice(last) });
   return parts;
 }
-
-/* Настройка, которая переживает перезагрузку; хранилище может быть недоступно */
-export function loadSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
-  try {
-    const saved = localStorage.getItem(key);
-    return (allowed as readonly string[]).includes(saved ?? '') ? (saved as T) : fallback;
-  } catch { return fallback; }
-}
-export function saveSetting(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch { /* приватный режим или заблокированное хранилище */ }
-}

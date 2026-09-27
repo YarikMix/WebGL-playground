@@ -1,12 +1,11 @@
 import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Notebooks from './screens/Notebooks';
 import Auth from './screens/Auth';
-import { loadSetting, saveSetting } from './data';
 import { useSceneLayout } from './useSceneLayout';
 import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
 import { clearSession, loadSession, saveSession } from './session';
 import type { Session } from './session';
-import type { AuthMode, CardsMode } from './types';
+import type { AuthMode } from './types';
 
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
@@ -24,8 +23,6 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 }
 
 export default function App() {
-  const [cards, setCards] = useState<CardsMode>(() => loadSetting('sky-cards-r3f', ['flat', 'liquid'] as const, 'liquid'));
-  const [motion, setMotion] = useState(() => loadSetting('sky-motion', ['1', '0'] as const, prefersReducedMotion() ? '0' : '1') === '1');
   const [session, setSession] = useState<Session | null>(() => loadSession());
 
   /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
@@ -35,6 +32,11 @@ export default function App() {
      кадров может не быть (Sky/Planet/Backdrop) и куда синхронизирован кросс-фейд половин
      карточки (AuthCard) — вместо повторного чтения matchMedia в каждом месте. */
   const reducedMotion = prefersReducedMotion();
+
+  /* Переключателей стекла и анимации больше нет: стекло всегда liquid, анимация включена.
+     prefers-reduced-motion — требование доступности, а не опция, и по-прежнему гасит движение. */
+  const motion = !reducedMotion;
+  const wantGlass = true;
 
   const onSignIn = (s: Session) => { saveSession(s); setSession(s); };
   /* Раньше mode жил внутри AuthCard и сбрасывался сам — поддерево размонтировалось при смене
@@ -67,20 +69,13 @@ export default function App() {
   const pageRef = useRef<HTMLDivElement>(null), glowRef = useRef<HTMLElement>(null);
   const limbRef = useRef<HTMLDivElement>(null), cardsRef = useRef<HTMLDivElement>(null);
 
-  const wantGlass = cards === 'liquid';
-  const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass);
+  const isAuth = session === null;
+  const layout = useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }, wantGlass, isAuth ? 'auth' : 'list');
 
-  const changeCards = (next: CardsMode) => {
-    if (next !== 'liquid') setGlassReady(false);
-    setCards(next);
-    saveSetting('sky-cards-r3f', next);
-  };
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
-  const onMotion = (on: boolean) => { setMotion(on); saveSetting('sky-motion', on ? '1' : '0'); };
 
   const glassOn = wantGlass && glassReady;
-  const isAuth = session === null;
   /* spin теперь поворачивает не планету, а солнце (Ruling 9, scene-config.ts): ±половина угла,
      покой входа и покой регистрации симметричны относительно базовой композиции SUN_ORBIT.
      Солнце у обоих экранов одно и то же — вход не заводит собственного (SUN_ORBIT). */
@@ -91,8 +86,7 @@ export default function App() {
     <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
       {isAuth
         ? <Auth glowRef={glowRef} cardsRef={cardsRef} limbRef={limbRef} mode={mode} onModeChange={setMode} onSignIn={onSignIn} glassOn={glassOn} reducedMotion={reducedMotion} />
-        : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef}
-            motion={motion} onMotion={onMotion} cards={cards} onCards={changeCards} glassOn={glassOn}
+        : <Notebooks glowRef={glowRef} limbRef={limbRef} cardsRef={cardsRef} glassOn={glassOn}
             session={session} onSignOut={onSignOut} />}
 
       <SceneBoundary>

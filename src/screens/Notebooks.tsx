@@ -6,24 +6,20 @@ import Footer from '../components/Footer';
 import { filters, initialNotebooks } from '../data';
 import { initials } from '../session';
 import type { Session } from '../session';
-import type { CardsMode, FilterId, Notebook } from '../types';
+import type { FilterId, Notebook } from '../types';
 
 interface NotebooksProps {
   /** glowRef и limbRef нужны сцене: из них берутся положение свечения и геометрия планеты */
   glowRef: RefObject<HTMLElement | null>;
   limbRef: RefObject<HTMLDivElement | null>;
   cardsRef: RefObject<HTMLDivElement | null>;
-  motion: boolean;
-  onMotion: (on: boolean) => void;
-  cards: CardsMode;
-  onCards: (mode: CardsMode) => void;
   /** стекло рисует сцена — карточки становятся прозрачными */
   glassOn: boolean;
   session: Session;
   onSignOut: () => void;
 }
 
-export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion, cards, onCards, glassOn, session, onSignOut }: NotebooksProps) {
+export default function Notebooks({ glowRef, limbRef, cardsRef, glassOn, session, onSignOut }: NotebooksProps) {
   const [notebooks, setNotebooks] = useState<Notebook[]>(initialNotebooks);
   const [active, setActive] = useState<FilterId>('all');
   const [query, setQuery] = useState('');
@@ -67,7 +63,7 @@ export default function Notebooks({ glowRef, limbRef, cardsRef, motion, onMotion
           <span className="sort">Сначала недавно изменённые</span>
         </div>
         <NotebookGrid gridRef={cardsRef} notebooks={shown} glass={glassOn} onOpen={() => setToast('В прототипе редактор не подключён')} />
-        <Footer cards={cards} onCards={onCards} motion={motion} onMotion={onMotion} />
+        <Footer />
       </main>
 
       {toast && <div className="toast" role="status">{toast}</div>}

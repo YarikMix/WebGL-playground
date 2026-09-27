@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
-import type { CardRect, SceneLayout } from './types';
+import type { CardRect, SceneLayout, SceneScreen } from './types';
 
 const BASE_HEIGHT = 900;   // высота канваса, пока стёкла карточек не тянут его ниже
 const round = (v: number) => Math.round(v * 2) / 2;
@@ -18,18 +18,19 @@ export interface LayoutRefs {
    (из CSS-диска .limb), положение свечения за заголовком и прямоугольники карточек.
    Канвас прокручивается вместе со страницей, поэтому скролл ничего не меняет —
    пересчёт нужен только при изменении раскладки. */
-export function useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }: LayoutRefs, glass: boolean): SceneLayout | null {
+export function useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }: LayoutRefs, glass: boolean, screen: SceneScreen): SceneLayout | null {
   const [layout, setLayout] = useState<SceneLayout | null>(null);
 
   useLayoutEffect(() => {
     const measure = () => {
-      const pageEl = pageRef.current, limbEl = limbRef.current, glowEl = glowRef.current;
-      if (!pageEl || !limbEl || !glowEl) return;
+      const pageEl = pageRef.current;
+      if (!pageEl) return;
+      // .limb и элемента свечения нет на экране блокнота: раскладка всё равно нужна — звёздам
+      const limbEl = limbRef.current, glowEl = glowRef.current;
       const page = pageEl.getBoundingClientRect();
-      const limb = limbEl.getBoundingClientRect();
-      const glow = glowEl.getBoundingClientRect();
+      const limb = limbEl?.getBoundingClientRect();
       const cardsEl = cardsRef.current;
-      const R = limb.width / 2;
+      const R = limb ? limb.width / 2 : 0;
 
       const cards: CardRect[] = glass && cardsEl
         ? [...cardsEl.querySelectorAll('.card')].map(el => {
@@ -41,12 +42,15 @@ export function useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }: LayoutRe
         : [];
       const cardsBottom = cardsEl ? cardsEl.getBoundingClientRect().bottom - page.top + 60 : 0;
 
+      const glowRect = limb && glowEl ? glowEl.getBoundingClientRect() : null;
       const next: SceneLayout = {
         width: round(page.width),
         height: Math.round(glass ? Math.max(BASE_HEIGHT, cardsBottom) : BASE_HEIGHT),
         fade: [BASE_HEIGHT * 0.6, BASE_HEIGHT],
-        planet: { cx: round(limb.left - page.left + R), cy: round(limb.top - page.top + R), R: round(R) },
-        glow: { x: round(limb.left - page.left + R), y: round(glow.top - page.top + 130), rx: Math.min(920, page.width * 1.3) / 2 * 1.1, ry: 297 },
+        planet: limb ? { cx: round(limb.left - page.left + R), cy: round(limb.top - page.top + R), R: round(R) } : null,
+        glow: limb && glowRect
+          ? { x: round(limb.left - page.left + R), y: round(glowRect.top - page.top + 130), rx: Math.min(920, page.width * 1.3) / 2 * 1.1, ry: 297 }
+          : null,
         cards,
       };
       // сравнение по содержимому: ResizeObserver срабатывает часто, а сцену стоит трогать только по делу
@@ -62,7 +66,9 @@ export function useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }: LayoutRe
     if (cardsRef.current) mo.observe(cardsRef.current, { childList: true });
     void document.fonts?.ready.then(measure);     // после загрузки шрифтов высота hero меняется
     return () => { ro.disconnect(); mo.disconnect(); };
-  }, [glass]);
+    // screen — явный повод переподписаться: при смене экрана рефы указывают на новые элементы
+    // (или никуда), а ResizeObserver страницы ловил это лишь косвенно, если менялась высота
+  }, [glass, screen]);
 
   return layout;
 }
