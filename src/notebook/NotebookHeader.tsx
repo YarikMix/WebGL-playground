@@ -8,7 +8,7 @@ interface NotebookHeaderProps {
   notebook: Notebook;
   initials: string;
   onSignOut: () => void;
-  /** вставка из шапки — после выбранной ячейки или в конец */
+  /** добавление из шапки — всегда в конец, как и полоса после последней ячейки */
   onAdd: (kind: CellKind) => void;
 }
 

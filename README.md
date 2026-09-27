@@ -42,12 +42,11 @@ TypeScript 7, `strict` плюс `noUncheckedIndexedAccess`; сборка пад�
 | `src/router.tsx` | маршруты кодом (`createRootRoute`/`createRoute`), хеш-история, охрана по сессии в `beforeLoad` |
 | `src/session.ts`, `session-store.ts` | сессия: localStorage + внешний стор на `useSyncExternalStore`, хук `useSession()` |
 | `src/route-params.ts` | `parseNotebookId` и `safeRedirect` — разбор того, что приходит из адресной строки |
-| `src/history-rewind.ts` | `rewindSteps` — сколько шагов назад до первой записи приложения: выход отматывает историю, и «Назад» с формы входа уводит с сайта |
 | `src/shell.ts` | `ShellContext`/`useShell()` — то, что корень отдаёт экранам вместо пропсов |
 | `src/notebook-cells.ts` | чистые функции над ячейками: стартовый набор, вставка, удаление, место вставки |
 | `src/types.ts` | общие типы: блокнот, ячейка, раскладка сцены |
 | `src/screens/` | экраны маршрутов: `Auth`, `Notebooks`, `Notebook` |
-| `src/notebook/` | шапка блокнота, ячейка, полоса вставки между ячейками |
+| `src/notebook/` | шапка блокнота, ячейка, полоса добавления в конец |
 | `src/components/` | интерфейс: шапка, hero, сетка карточек, кнопка «Новый блокнот», подвал |
 | `src/useSceneLayout.ts` | измеряет вёрстку и отдаёт сцене геометрию: центр и радиус планеты, прямоугольники карточек |
 | `src/sky/Sky.tsx` | `<Canvas>`, камера, рендер по требованию на 30 кадров/с |
