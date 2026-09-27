@@ -4,11 +4,13 @@
 стилистике. Репозиторий нужен, чтобы сравнить реализации анимированного фона —
 планеты и звёздного неба.
 
-| Ветка | Фон | Демо |
+| Ветка | Что | Демо |
 |---|---|---|
-| `main` | Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/> |
-| `webgl` | чистый WebGL, планета одним фрагментным шейдером, без библиотек | <https://yarikmix.github.io/WebGL-playground/webgl/> |
-| `r3f` | официальный React + three.js через react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/r3f/> |
+| `r3f` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
+| `main` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
+| `webgl` | архив: чистый WebGL, планета одним фрагментным шейдером | <https://yarikmix.github.io/WebGL-playground/webgl/> |
+
+Старый адрес `/r3f/` перенаправляет в корень с сохранением хеша.
 
 `main` и `webgl` отличаются по сути одним файлом: `git diff main webgl -- sky.js`.
 Ветка `r3f` — отдельное приложение на Vite со своей структурой.
@@ -71,5 +73,9 @@
 
 ## Деплой
 
-`.github/workflows/pages.yml` на каждый push в `main` или `webgl` собирает сайт из
-обеих веток и публикует его в GitHub Pages.
+`.github/workflows/pages.yml` на каждый push в `main`, `webgl` или `r3f` собирает сайт из трёх
+веток и публикует его в GitHub Pages: `r3f` (приложение) — через `bun test` и `bun run build`
+в корень сайта, `main` (Canvas 2D) — в `/canvas/`, `webgl` — в `/webgl/`; эта ветка (`webgl`)
+лежит в своей подпапке как есть, без сборки. Старый адрес `/r3f/` перенаправляет в корень
+с сохранением хеша. Файл workflow должен совпадать во всех трёх ветках: push запускает его
+из той ветки, в которую пришёл, и устаревшая копия выложит сайт в старой раскладке.
