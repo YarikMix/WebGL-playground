@@ -6,14 +6,14 @@
 
 | Ветка | Что | Демо |
 |---|---|---|
-| `r3f` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
-| `main` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
+| `main` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
+| `canvas` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
 | `webgl` | архив: чистый WebGL, планета одним фрагментным шейдером | <https://yarikmix.github.io/WebGL-playground/webgl/> |
 
 Старый адрес `/r3f/` перенаправляет в корень с сохранением хеша.
 
-`main` и `webgl` отличаются по сути одним файлом: `git diff main webgl -- sky.js`.
-Ветка `r3f` — отдельное приложение на Vite со своей структурой.
+`canvas` и `webgl` отличаются по сути одним файлом: `git diff canvas webgl -- sky.js`.
+Ветка `main` — отдельное приложение на Vite со своей структурой.
 
 ## Эта ветка: React 19 + TypeScript + react-three-fiber + drei
 
@@ -72,7 +72,7 @@ three.js, R3F и drei для первого экрана не нужны, поэ
 | основной (React + интерфейс) | 206 КБ | 66 КБ |
 | `Sky` (three.js + R3F + drei + сцена) | 979 КБ | 265 КБ |
 
-Пока чанк грузится, фон — чистый CSS: тот же диск `.limb` и свечение, что в ветке `main`.
+Пока чанк грузится, фон — чистый CSS: тот же диск `.limb` и свечение, что в ветке `canvas`.
 Переключение идёт в два шага, и оба — только после реально отрисованного кадра (`FirstFrame`):
 
 1. `skyReady` — `.page` получает класс `.webgl`: канвас проявляется, CSS-фон гаснет (crossfade 0,7 с);
@@ -131,7 +131,7 @@ three.js, R3F и drei для первого экрана не нужны, поэ
 
 ### Цена
 
-| | `webgl` | `r3f` |
+| | `webgl` | `main` |
 |---|---|---|
 | JS для страницы | 33 КБ исходников (`sky.js` 25 + `app.js` 8), без сборки | 1185 КБ, 331 КБ gzip; до первого экрана — 66 КБ gzip |
 | Зависимости | нет | react, react-dom, three, @react-three/fiber, @react-three/drei |
@@ -162,7 +162,7 @@ React и three.js не ускоряют фон: узкое место — фра
 Форма не зависит от сцены: `AuthCard` рендерится независимо от `<Sky>`, поэтому она полностью
 рабочая (валидация, вход, переключение режима) и до того, как догрузится ленивый чанк сцены,
 и если WebGL недоступен вовсе — тогда `SceneBoundary` гасит сцену, и под карточкой остаётся
-статичный CSS-фон (тот же диск `.limb`, что в ветке `main`). На ширине до 860px карточка
+статичный CSS-фон (тот же диск `.limb`, что в ветке `canvas`). На ширине до 860px карточка
 становится одноколоночной: форма и приглашение («Уже есть аккаунт?» / «Ещё нет аккаунта?»)
 идут одно под другим, приглашение — в одну строку. При `prefers-reduced-motion: reduce`
 CSS-переход и разгон тикера сцены отключены — режим меняется сразу, без проезда.
@@ -174,8 +174,8 @@ CSS-переход и разгон тикера сцены отключены �
 
 ## Деплой
 
-`.github/workflows/pages.yml` на каждый push в `main`, `webgl` или `r3f` собирает сайт из трёх
-веток и публикует в GitHub Pages: эта ветка (`r3f`) — через `bun test` и `bun run build`
-в корень сайта, `main` (Canvas 2D) — в `/canvas/`, `webgl` — в `/webgl/`. Старый адрес `/r3f/`
+`.github/workflows/pages.yml` на каждый push в `canvas`, `webgl` или `main` собирает сайт из трёх
+веток и публикует в GitHub Pages: эта ветка (`main`) — через `bun test` и `bun run build`
+в корень сайта, `canvas` (Canvas 2D) — в `/canvas/`, `webgl` — в `/webgl/`. Старый адрес `/r3f/`
 перенаправляет в корень с сохранением хеша. Файл workflow должен совпадать во всех ветках: push
 запускает его из той ветки, в которую пришёл.
