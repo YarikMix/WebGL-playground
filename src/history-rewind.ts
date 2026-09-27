@@ -4,7 +4,11 @@
    (запись, созданная до роутера, чужой код), поэтому номер проверяется, а не берётся на веру. */
 
 /** Сколько шагов назад до первой записи приложения. Всё, кроме неотрицательного целого, — 0:
-    лучше не отмотать вовсе, чем уйти `history.go` за пределы приложения */
-export function rewindSteps(index: unknown): number {
-  return typeof index === 'number' && Number.isSafeInteger(index) && index > 0 ? index : 0;
+    лучше не отмотать вовсе, чем уйти `history.go` за пределы приложения.
+    historyLength — `window.history.length`. Браузер хранит ограниченное число записей на вкладку
+    (Chrome и Firefox — около 50) и старые выбрасывает, а номер TanStack растёт без предела. Шагов
+    не меньше, чем записей, — первой записи уже нет, и `go()` молча ничего не сделал бы: тоже 0 */
+export function rewindSteps(index: unknown, historyLength: number): number {
+  if (typeof index !== 'number' || !Number.isSafeInteger(index) || index <= 0) return 0;
+  return index < historyLength ? index : 0;
 }

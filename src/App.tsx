@@ -74,15 +74,23 @@ export default function App() {
      раньше, при создании роутера). Охранник записи, куда отмотали, успевает заменить её на
      /login?redirect=… (редирект — тоже replace), и наша замена идёт следом; а если не успел, роутер
      его редирект отбросит — он следует редиректу, только если его загрузка последняя. В обоих случаях
-     на месте первой записи остаётся ровно один чистый /login, без redirect */
+     на месте первой записи остаётся ровно один чистый /login, без redirect.
+     Страховка — таймер: go() за пределы истории браузер молча игнорирует, popstate не приходит.
+     Без неё сессия уже стёрта, адрес остаётся на охраняемом маршруте, экраны которого без сессии
+     рисуют null (пустое небо), а взведённый обработчик перехватил бы следующий «Назад»/«Вперёд».
+     Номер сверяется с длиной истории заранее (rewindSteps), но и она может не совпасть с тем, что
+     браузер реально хранит, — таймер закрывает остальные случаи */
   const signOut = useCallback(() => {
     // выход уже идёт: повторный go(-steps) по ещё не обновлённому номеру записи увёл бы с сайта
     if (!sessionStore.get()) return;
     sessionStore.signOut();
     setMode('login');
-    const steps = rewindSteps(router.history.location.state.__TSR_index);
-    if (steps === 0) { void navigate({ to: '/login', replace: true }); return; }
-    window.addEventListener('popstate', () => { void navigate({ to: '/login', replace: true }); }, { once: true });
+    const toLogin = () => { void navigate({ to: '/login', replace: true }); };
+    const steps = rewindSteps(router.history.location.state.__TSR_index, window.history.length);
+    if (steps === 0) { toLogin(); return; }
+    const onPop = () => { clearTimeout(fallback); toLogin(); };
+    const fallback = setTimeout(() => { window.removeEventListener('popstate', onPop); toLogin(); }, 500);
+    window.addEventListener('popstate', onPop, { once: true });
     router.history.go(-steps);
   }, [router, navigate]);
 
