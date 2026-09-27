@@ -32,10 +32,10 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
 
   const { values, errors, busy, setValue, blurField, reset, submit } = useAuthForm(mode, onSignIn);
 
-  const nameRef = useRef<HTMLInputElement>(null);
-  const emailRef = useRef<HTMLInputElement>(null);
+  const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-  const fieldRef = (field: Field) => (field === 'name' ? nameRef : field === 'email' ? emailRef : passwordRef);
+  const confirmRef = useRef<HTMLInputElement>(null);
+  const fieldRef = (field: Field) => (field === 'login' ? loginRef : field === 'password' ? passwordRef : confirmRef);
 
   // при смене режима (и при первом рендере — тогда это просто открытие формы) — сброс ошибок
   /* mode меняется сразу — от него едет луна. Содержимое форм переключает displayMode, который
@@ -48,7 +48,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
   useEffect(() => {
     reset();
     setShown(false);
-    (displayMode === 'signup' ? nameRef : emailRef).current?.focus();
+    loginRef.current?.focus();
     // reset/submit меняются на каждый рендер (хук без useCallback) — сюда их включать не нужно,
     // эффект должен срабатывать только на смену режима
   }, [displayMode]);
@@ -90,27 +90,19 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
     <div className={`card auth-card mode-${mode} show-${displayMode}${glass ? ' lq' : ''}${crossfading ? ' crossfading' : ''}`}>
       <form className="auth-form" noValidate onSubmit={e => { void handleSubmit(e); }}>
         <h1>{displayMode === 'login' ? 'Вход' : 'Создание аккаунта'}</h1>
-        {displayMode === 'signup' && (
-          <label className="field">
-            <span>Имя</span>
-            <input ref={nameRef} type="text" name="name" autoComplete="name" value={values.name}
-              aria-invalid={errors.name ? true : undefined}
-              aria-describedby={errors.name ? 'name-error' : undefined}
-              onChange={e => setValue('name', e.target.value)} onBlur={() => blurField('name')} />
-            {/* Рендерится всегда (не только при ошибке): у .field-error зарезервирована высота
-                строки в CSS, чтобы появление ошибки не двигало форму и не роняло клик по кнопке
-                переключения режима под ней на узком экране (см. Ruling 10, task-6-report.md).
-                Пустой элемент с role="alert" не озвучивается скринридером. */}
-            <span id="name-error" className="field-error" role="alert">{errors.name}</span>
-          </label>
-        )}
         <label className="field">
-          <span>Почта</span>
-          <input ref={emailRef} type="email" name="email" autoComplete="email" placeholder="имя@домен" value={values.email}
-            aria-invalid={errors.email ? true : undefined}
-            aria-describedby={errors.email ? 'email-error' : undefined}
-            onChange={e => setValue('email', e.target.value)} onBlur={() => blurField('email')} />
-          <span id="email-error" className="field-error" role="alert">{errors.email}</span>
+          <span>Логин</span>
+          {/* autocapitalize/spellcheck: иначе телефон поднимет первую букву, и логин не пройдёт правило */}
+          <input ref={loginRef} type="text" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false}
+            value={values.login}
+            aria-invalid={errors.login ? true : undefined}
+            aria-describedby={errors.login ? 'login-error' : undefined}
+            onChange={e => setValue('login', e.target.value)} onBlur={() => blurField('login')} />
+          {/* Рендерится всегда (не только при ошибке): у .field-error зарезервирована высота
+              строки в CSS, чтобы появление ошибки не двигало форму и не роняло клик по кнопке
+              переключения режима под ней на узком экране (см. Ruling 10, task-6-report.md).
+              Пустой элемент с role="alert" не озвучивается скринридером. */}
+          <span id="login-error" className="field-error" role="alert">{errors.login}</span>
         </label>
         <label className="field">
           <span>Пароль</span>
@@ -133,6 +125,19 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
           </span>
           <span id="password-error" className="field-error" role="alert">{errors.password}</span>
         </label>
+        {displayMode === 'signup' && (
+          <label className="field">
+            <span>Повторите пароль</span>
+            {/* Своей кнопки показа нет: переключатель у поля «Пароль» раскрывает оба поля,
+                чтобы их можно было сверить глазами */}
+            <input ref={confirmRef} type={shown ? 'text' : 'password'} name="confirm" autoComplete="new-password"
+              value={values.confirm}
+              aria-invalid={errors.confirm ? true : undefined}
+              aria-describedby={errors.confirm ? 'confirm-error' : undefined}
+              onChange={e => setValue('confirm', e.target.value)} onBlur={() => blurField('confirm')} />
+            <span id="confirm-error" className="field-error" role="alert">{errors.confirm}</span>
+          </label>
+        )}
         <button className="btn btn-primary" type="submit" disabled={busy}>
           {displayMode === 'login' ? 'Войти' : 'Создать аккаунт'}
         </button>
