@@ -60,3 +60,11 @@ export interface SceneLayout {
   glow: { x: number; y: number; rx: number; ry: number };
   cards: CardRect[];
 }
+
+export type CellKind = 'code' | 'text';
+
+/** Ячейка блокнота. Содержимого в модуле 1 нет — только плейсхолдер; поле source появится вместе с редактором */
+export interface Cell {
+  id: number;
+  kind: CellKind;
+}
