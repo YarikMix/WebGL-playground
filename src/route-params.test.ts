@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseNotebookId, safeRedirect } from './route-params';
+import { loginSearch, parseNotebookId, safeRedirect } from './route-params';
 
 describe('parseNotebookId', () => {
   test('положительное целое', () => {
@@ -16,8 +16,20 @@ describe('safeRedirect', () => {
     expect(safeRedirect('/')).toBe('/');
     expect(safeRedirect('/notebook/3')).toBe('/notebook/3');
   });
-  test.each(['https://evil.com', '//evil.com', '/\\evil.com', 'notebook/3', '', 42, null, undefined, [['/']]])('отбрасывает %p', raw => {
+  test.each(['https://evil.com', '//evil.com', '/\\evil.com', '/\t/evil.com', '/\n/evil.com', '/notebook/3 ',
+    'notebook/3', '', 42, null, undefined, [['/']]])('отбрасывает %p', raw => {
     // массив обёрнут ещё раз: test.each раскладывает элемент-массив в аргументы, и без обёртки проверялся бы '/'
     expect(safeRedirect(raw)).toBeUndefined();
+  });
+});
+
+describe('loginSearch', () => {
+  test('проверенный путь', () => {
+    expect(loginSearch({ redirect: '/notebook/3' })).toEqual({ redirect: '/notebook/3' });
+  });
+  test('ключ redirect есть и у отброшенного значения', () => {
+    // роутер сливает { ...сырой search, ...validateSearch }: без ключа сырой '//evil.com' остался бы
+    expect({ redirect: '//evil.com', ...loginSearch({ redirect: '//evil.com' }) }.redirect).toBeUndefined();
+    expect('redirect' in loginSearch({})).toBe(true);
   });
 });

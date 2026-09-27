@@ -15,10 +15,12 @@ export default function Auth() {
   const { redirect } = loginApi.useSearch();
 
   /* Стор сессии синхронный, поэтому охранник следующего маршрута уже видит вход.
-     redirect проверен в validateSearch (safeRedirect) — это всегда путь внутри приложения */
+     redirect проверен в validateSearch (loginSearch) — это всегда путь внутри приложения.
+     replace, а не push: форма входа уходит из истории. С push первый «Назад» после входа попадал
+     на /login, его beforeLoad при живой сессии тут же отправлял вперёд — кнопка ничего не делала */
   const onSignIn = (session: Session) => {
     signIn(session);
-    router.history.push(redirect ?? '/');
+    router.history.replace(redirect ?? '/');
   };
 
   return (
