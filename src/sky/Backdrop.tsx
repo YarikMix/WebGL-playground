@@ -50,7 +50,7 @@ interface BackdropProps {
   width: number;
   height: number;
   planet: PlanetGeometry;
-  // Sky передаёт Backdrop только когда glow не null (см. Sky.tsx) — здесь тип уже сужен
+  // Sky передаёт последний не-null glow (на экране без планеты — вместе с visible={false}), тип уже сужен
   glow: NonNullable<SceneLayout['glow']>;
   fade: [number, number];
   sun: SunDirection;
@@ -58,9 +58,11 @@ interface BackdropProps {
   motion: boolean;
   /** непрерывных кадров нет — угол ставится сразу же на единственном заказанном кадре */
   reducedMotion: boolean;
+  /** false — экран без планеты: меш спрятан, но материал и его программа живы (см. Sky.tsx) */
+  visible: boolean;
 }
 
-export default function Backdrop({ width, height, planet, glow, fade, sun, spin, motion, reducedMotion }: BackdropProps) {
+export default function Backdrop({ width, height, planet, glow, fade, sun, spin, motion, reducedMotion, visible }: BackdropProps) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uCenter: { value: new THREE.Vector2() },
@@ -90,7 +92,7 @@ export default function Backdrop({ width, height, planet, glow, fade, sun, spin,
   });
 
   return (
-    <mesh position={[width / 2, -height / 2, -2 * planet.R - 400]} scale={[width, height, 1]}>
+    <mesh position={[width / 2, -height / 2, -2 * planet.R - 400]} scale={[width, height, 1]} visible={visible}>
       <planeGeometry args={[1, 1]} />
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} depthWrite={false} />
     </mesh>

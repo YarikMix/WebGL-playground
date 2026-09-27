@@ -108,9 +108,11 @@ interface PlanetProps {
   spin: number;
   /** непрерывных кадров нет — угол ставится сразу же на единственном заказанном кадре */
   reducedMotion: boolean;
+  /** false — экран без планеты: меш спрятан, но материал и его программа живы (см. Sky.tsx) */
+  visible: boolean;
 }
 
-export default function Planet({ planet, fade, motion, sun, spin, reducedMotion }: PlanetProps) {
+export default function Planet({ planet, fade, motion, sun, spin, reducedMotion, visible }: PlanetProps) {
   const mesh = useRef<THREE.Mesh>(null), material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -150,7 +152,7 @@ export default function Planet({ planet, fade, motion, sun, spin, reducedMotion 
 
   return (
     // единичная сфера масштабируется до радиуса в пикселях: геометрия не пересоздаётся при resize
-    <mesh ref={mesh} position={[planet.cx, -planet.cy, -planet.R - 100]} scale={planet.R}>
+    <mesh ref={mesh} position={[planet.cx, -planet.cy, -planet.R - 100]} scale={planet.R} visible={visible}>
       <sphereGeometry args={[1, 384, 192]} />
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} />
     </mesh>
