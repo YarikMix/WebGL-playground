@@ -4,11 +4,13 @@
 стилистике. Репозиторий нужен, чтобы сравнить реализации анимированного фона —
 планеты и звёздного неба.
 
-| Ветка | Фон | Демо |
+| Ветка | Что | Демо |
 |---|---|---|
-| `main` | Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/> |
-| `webgl` | чистый WebGL, планета одним фрагментным шейдером, без библиотек | <https://yarikmix.github.io/WebGL-playground/webgl/> |
-| `r3f` | официальный React + three.js через react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/r3f/> |
+| `r3f` | приложение: React 19 + TypeScript + react-three-fiber и drei | <https://yarikmix.github.io/WebGL-playground/> |
+| `main` | архив: Canvas 2D + CSS-диск планеты, без библиотек | <https://yarikmix.github.io/WebGL-playground/canvas/> |
+| `webgl` | архив: чистый WebGL, планета одним фрагментным шейдером | <https://yarikmix.github.io/WebGL-playground/webgl/> |
+
+Старый адрес `/r3f/` перенаправляет в корень с сохранением хеша.
 
 `main` и `webgl` отличаются по сути одним файлом: `git diff main webgl -- sky.js`.
 Ветка `r3f` — отдельное приложение на Vite со своей структурой.
