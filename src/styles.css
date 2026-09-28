@@ -186,16 +186,18 @@ main { position: relative; padding-bottom: 24px; }
 .field input:focus { outline: 0; border-color: rgba(160, 135, 255, .6); box-shadow: 0 0 0 3px rgba(139, 108, 255, .22); }
 .field-toggle { position: absolute; right: 6px; display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: none; color: var(--mist); cursor: pointer; }
 .field-toggle:hover { color: var(--ice); }
-.auth-card { overflow: clip; }
-/* Смещение в покое равно радиусу — значит ближний край луны всегда встаёт ровно на среднюю
-   линию карточки, при любой её ширине: видна половина круга, а верх и низ срезаны высотой
-   карточки (600px круга против 512px карточки). На середине перехода смещение проходит через
-   нуль, и луна оказывается точно по центру панели, накрывая уходящую форму целиком — так же,
-   как синяя плашка в референсе. Отсюда и размер: круг обязан быть крупнее половины карточки,
-   иначе в покое он помещался бы целиком и «съедать» было бы нечем. */
+.auth-card { overflow: clip; container-type: inline-size; }  /* cqw — у луны ниже */
+/* Луна — целый круг внутри своей половины карточки, с полями со всех сторон: 420px в половине
+   шириной 450px и высотой 512px. Раньше круг был 600px и карточка срезала его сверху, снизу и
+   с внешнего края — три прямых среза глаз читал как «неправильный круг» (замечание ментора
+   по UX), а студент предлагал пустые края. Смещение в покое — четверть ширины карточки (25cqw,
+   контейнер — .auth-card): центр луны встаёт ровно в центр половины при любой её ширине.
+   На середине перехода луна проходит через центр карточки и накрывает только его, поэтому
+   форма на время подмены гаснет (.crossfading .auth-form ниже) — перескок в другую половину
+   не виден. */
 .auth-invite {
-  --moon: 600px;
-  --moon-out: calc(var(--moon) / 2);
+  --moon: 420px;
+  --moon-out: 25cqw;
   position: absolute; top: 50%; left: 50%; z-index: 2;
   width: var(--moon); height: var(--moon); border-radius: 50%; padding: 0;
   display: flex; align-items: center; justify-content: center; text-align: center;
@@ -207,9 +209,9 @@ main { position: relative; padding-bottom: 24px; }
      Здесь — только шар и «моря» (диффузные пятна, это градиент умеет); кратеры делают
      элементы .moon-crater, см. Moon.tsx. */
   background:
-    radial-gradient(circle 150px at 150px 150px, rgba(92, 74, 140, .10) 0 44%, rgba(92, 74, 140, 0) 100%),
-    radial-gradient(circle 170px at 430px 430px, rgba(92, 74, 140, .09) 0 44%, rgba(92, 74, 140, 0) 100%),
-    radial-gradient(circle 110px at 500px 120px, rgba(92, 74, 140, .07) 0 44%, rgba(92, 74, 140, 0) 100%),
+    radial-gradient(circle 105px at 105px 105px, rgba(92, 74, 140, .10) 0 44%, rgba(92, 74, 140, 0) 100%),
+    radial-gradient(circle 119px at 301px 301px, rgba(92, 74, 140, .09) 0 44%, rgba(92, 74, 140, 0) 100%),
+    radial-gradient(circle 77px at 350px 84px, rgba(92, 74, 140, .07) 0 44%, rgba(92, 74, 140, 0) 100%),
     radial-gradient(circle at 34% 28%, #fdfcff, #e5dff6 46%, #c0b7dc 82%, #a89ecb);
   box-shadow:
     0 0 90px -10px rgba(210, 198, 255, .5),
@@ -246,17 +248,12 @@ main { position: relative; padding-bottom: 24px; }
 .auth-invite .btn-ghost { color: #1a1330; background: rgba(26, 19, 48, .08); box-shadow: inset 0 0 0 1px rgba(26, 19, 48, .22); }
 .auth-invite .btn-ghost:hover { background: rgba(26, 19, 48, .14); }
 /* Настоящий слой, а не display: contents: иначе надпись на луне нечем гасить. z-index: 1 —
-   над слоем шума. Сдвиг на 75px: в покое видна половина круга, и её оптический центр не
-   совпадает с центром самой луны — без сдвига надпись стояла бы заметно ближе к обрезанному
-   краю. На середине перехода луна целиком в кадре, сдвиг обнуляется; надпись в этот момент
-   погашена, поэтому её переезд не виден. */
+   над слоем шума. Круг виден целиком, поэтому надпись стоит ровно по его центру. */
 .auth-moon-face {
   position: relative; z-index: 2;
   display: flex; flex-direction: column; align-items: center; gap: 18px;
-  transform: translateX(-75px);
-  transition: transform var(--sweep) cubic-bezier(.4, 0, .2, 1), opacity calc(var(--sweep) * .25) ease;
+  transition: opacity calc(var(--sweep) * .25) ease;
 }
-.mode-signup .auth-moon-face { transform: translateX(75px); }
 
 /* Луна едет по `mode` — сразу, с первого кадра. Содержимое (форма и надпись на луне) живёт
    по `show-*`, который отстаёт на половину анимации: пока луна идёт к цели, содержимое гаснет,
@@ -363,8 +360,6 @@ html:has(.nb-main) {
   }
   .auth-invite::before, .moon-relief { display: none; }
   .mode-signup .auth-invite, .show-signup .auth-form { transform: none; }
-  /* Сдвиг на оптический центр обрезанного круга здесь не нужен — круга нет. */
-  .auth-moon-face, .mode-signup .auth-moon-face { transform: none; }
   .auth-moon-face { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px; }
   .auth-invite p { font: 400 14px/1.3 var(--body); color: var(--mist); max-width: none; }
   .auth-invite .btn-ghost { color: var(--ice); background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--line); }
