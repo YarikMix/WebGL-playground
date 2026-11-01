@@ -3,7 +3,8 @@ import { Outlet, useNavigate, useRouter, useRouterState } from '@tanstack/react-
 import { initialNotebooks } from './data';
 import { insertCell } from './notebook-cells';
 import { useSceneLayout } from './useSceneLayout';
-import { SUN_ORBIT, SWEEP_ANGLE, SWEEP_MS } from './scene-config';
+import { SUN_ORBIT } from './scene-config';
+import { beginFlight, completeFlight, idleFlight } from './auth/flight';
 import { sessionStore, useSession } from './session-store';
 import { ShellContext } from './shell';
 import type { Shell } from './shell';
@@ -13,15 +14,17 @@ import type { AuthMode, Cell, Notebook, SceneScreen } from './types';
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
 const skyChunk = import('./sky/Sky');
+// lazy передаст отказ в SceneBoundary, когда измерится DOM; ранний preload не должен быть unhandled.
+void skyChunk.catch(() => {});
 const Sky = lazy(() => skyChunk);
 
 const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* Сцена — украшение: если чанк не загрузился или WebGL недоступен, страница остаётся на CSS-фоне */
-class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error: unknown) { console.error('Sky: сцена не запустилась, остаётся CSS-фон.', error); }
+  componentDidCatch(error: unknown) { this.props.onFailure(); console.error('Sky: сцена не запустилась, остаётся CSS-фон.', error); }
   render() { return this.state.failed ? null : this.props.children; }
 }
 
@@ -37,12 +40,14 @@ export default function App() {
   const routeId = useRouterState({ select: s => s.matches.at(-1)?.routeId });
   const screen: SceneScreen = routeId === '/login' ? 'auth' : routeId === '/notebook/$id' ? 'notebook' : 'list';
 
-  /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
-  const [mode, setMode] = useState<AuthMode>('login');
+  /* Общие часы для DOM-формы и камеры; mode фиксируется по прибытии. */
+  const [authFlight, setAuthFlight] = useState(() => idleFlight('login'));
+  const [authSceneReady, setAuthSceneReady] = useState(false);
+  const authSwitchRef = useRef<HTMLButtonElement>(null);
 
   /* Единственное место, где читается медиазапрос: прокидывается пропом туда, где непрерывных
-     кадров может не быть (Sky/Planet/Backdrop) и куда синхронизирован кросс-фейд половин
-     карточки (AuthCard) — вместо повторного чтения matchMedia в каждом месте. Читается один раз
+     кадров может не быть (Sky/Planet/Backdrop), и в AuthCard — вместо повторного чтения
+     matchMedia в каждом месте. Читается один раз
      за жизнь страницы: значение уходит в контекст, и новый объект на каждом рендере зря
      перерисовывал бы все экраны. */
   const [reducedMotion] = useState(prefersReducedMotion);
@@ -72,7 +77,7 @@ export default function App() {
   const signOut = useCallback(() => {
     const here = router.state.location.pathname;
     sessionStore.signOut();
-    setMode('login');
+    setAuthFlight(idleFlight('login'));
     void navigate({ to: '/login', search: { redirect: here }, replace: true });
   }, [router, navigate]);
 
@@ -93,26 +98,13 @@ export default function App() {
     });
   }, []);
 
-  /* Тикер разгоняется на время переезда света и возвращается обратно. Эффект реагирует
-     на смену mode, но не должен срабатывать при монтировании — иначе каждое открытие экрана
-     входа зря поднимало бы частоту. При prefers-reduced-motion разгон не включаем вовсе:
-     свет там встаёт на место мгновенно, разгонять нечего. */
-  const [sweeping, setSweeping] = useState(false);
-  const isFirstMode = useRef(true);
-  useEffect(() => {
-    if (isFirstMode.current) { isFirstMode.current = false; return; }
-    if (reducedMotion) return;
-    setSweeping(true);
-    const timer = setTimeout(() => setSweeping(false), SWEEP_MS);
-    return () => clearTimeout(timer);
-  }, [mode, reducedMotion]);
-
   /* Готовность сцены — в два шага, и оба меняют вёрстку только после отрисованного кадра:
      skyReady   — канвас проявляется, CSS-фон гаснет;
      glassReady — DOM-карточки становятся прозрачными. Раньше нельзя: пока шейдер стекла
                   компилируется, под прозрачной карточкой не было бы ничего. */
   const [skyReady, setSkyReady] = useState(false);
   const [glassReady, setGlassReady] = useState(false);
+  const [sceneFailed, setSceneFailed] = useState(false);
 
   const pageRef = useRef<HTMLDivElement>(null), glowRef = useRef<HTMLElement>(null);
   const limbRef = useRef<HTMLDivElement>(null), cardsRef = useRef<HTMLDivElement>(null);
@@ -122,28 +114,38 @@ export default function App() {
 
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
+  const onUnavailable = useCallback(() => {
+    setSceneFailed(true);
+    setSkyReady(false);
+    setAuthSceneReady(false);
+    setGlassReady(false);
+    setAuthFlight(prev => prev.startedAt === null ? prev : completeFlight(prev, prev.startedAt));
+  }, []);
 
   const glassOn = wantGlass && glassReady;
-  /* spin теперь поворачивает не планету, а солнце (Ruling 9, scene-config.ts): ±половина угла,
-     покой входа и покой регистрации симметричны относительно базовой композиции SUN_ORBIT.
-     Солнце у обоих экранов одно и то же — вход не заводит собственного (SUN_ORBIT). */
-  const spin = isAuth ? (mode === 'signup' ? SWEEP_ANGLE / 2 : -SWEEP_ANGLE / 2) : 0;
-  const tickMs = sweeping ? 0 : 33;
+  useEffect(() => { if (!isAuth) setAuthSceneReady(false); }, [isAuth]);
+  const requestAuthMode = useCallback((target: AuthMode) => {
+    setAuthFlight(prev => beginFlight(prev, target, performance.now(), authSceneReady && !reducedMotion));
+  }, [authSceneReady, reducedMotion]);
+  const onAuthArrive = useCallback((startedAt: number) => setAuthFlight(prev => completeFlight(prev, startedAt)), []);
+  const onAuthReady = useCallback(() => setAuthSceneReady(true), []);
+  const tickMs = isAuth && authFlight.startedAt !== null ? 0 : 33;
 
   const shell = useMemo<Shell>(() => ({
-    glowRef, limbRef, cardsRef, glassOn, reducedMotion, session, mode, setMode, signIn, signOut,
+    glowRef, limbRef, cardsRef, glassOn, reducedMotion, session, authFlight, authSceneReady, authSwitchRef, requestAuthMode, signIn, signOut,
     notebooks, createNotebook, setCells, toast,
-  }), [glassOn, reducedMotion, session, mode, signIn, signOut, notebooks, createNotebook, setCells, toast]);
+  }), [glassOn, reducedMotion, session, authFlight, authSceneReady, requestAuthMode, signIn, signOut, notebooks, createNotebook, setCells, toast]);
 
   return (
     <ShellContext.Provider value={shell}>
       <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
         <Outlet />
 
-        <SceneBoundary>
+        <SceneBoundary onFailure={onUnavailable}>
           <Suspense fallback={null}>
-            {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={spin} reducedMotion={reducedMotion} tickMs={tickMs}
-              onReady={onSkyReady} onGlassReady={onGlassReady} />}
+            {layout && !sceneFailed && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={0} reducedMotion={reducedMotion} tickMs={tickMs}
+              screen={screen} authFlight={authFlight} authSwitchRef={authSwitchRef} onAuthArrive={onAuthArrive} onAuthReady={onAuthReady}
+              onReady={onSkyReady} onGlassReady={onGlassReady} onUnavailable={onUnavailable} />}
           </Suspense>
         </SceneBoundary>
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 
 /* Сообщает наружу, что кадр с этим компонентом уже на экране. useFrame вызывается до рендера,
@@ -6,10 +6,12 @@ import { useFrame } from '@react-three/fiber';
    нарисован. По этому сигналу страница меняет вёрстку — гасит CSS-фон, делает карточки прозрачными. */
 export default function FirstFrame({ onReady }: { onReady: () => void }) {
   const done = useRef(false);
+  const raf = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
   useFrame(() => {
     if (done.current) return;
     done.current = true;
-    requestAnimationFrame(onReady);
+    raf.current = requestAnimationFrame(onReady);
   });
   return null;
 }

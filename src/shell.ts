@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { RefObject } from 'react';
+import type { AuthFlight } from './auth/flight';
 import type { Session } from './session';
 import type { AuthMode, Cell, Notebook } from './types';
 
@@ -16,9 +17,11 @@ export interface Shell {
   glassOn: boolean;
   reducedMotion: boolean;
   session: Session | null;
-  /** режим формы входа живёт в корне: им управляет и карточка, и свет сцены */
-  mode: AuthMode;
-  setMode: (mode: AuthMode) => void;
+  /** состояние перелёта общее для формы и камеры */
+  authFlight: AuthFlight;
+  authSceneReady: boolean;
+  authSwitchRef: RefObject<HTMLButtonElement | null>;
+  requestAuthMode: (mode: AuthMode) => void;
   signIn: (session: Session) => void;
   signOut: () => void;
   notebooks: Notebook[];

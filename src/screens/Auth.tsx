@@ -1,16 +1,14 @@
-import type { CSSProperties } from 'react';
 import { Link, getRouteApi, useRouter } from '@tanstack/react-router';
 import AuthCard from '../auth/AuthCard';
-import { SWEEP_MS } from '../scene-config';
+import { useAuthForm } from '../auth/useAuthForm';
+import { AUTH_FADE_MS } from '../auth/flight';
 import { useShell } from '../shell';
 import type { Session } from '../session';
 
 const loginApi = getRouteApi('/login');
 
-/* Оба рефа сцены (glowRef и cardsRef) указывают на один и тот же контейнер: он же источник свечения
-   за карточкой, он же обёртка, в которой сцена ищет `.card`, чтобы отдать карточке стекло */
 export default function Auth() {
-  const { glowRef, cardsRef, limbRef, mode, setMode, signIn, glassOn, reducedMotion } = useShell();
+  const { authFlight, authSceneReady, authSwitchRef, requestAuthMode, signIn, reducedMotion } = useShell();
   const router = useRouter();
   const { redirect } = loginApi.useSearch();
 
@@ -22,10 +20,12 @@ export default function Auth() {
     signIn(session);
     router.history.replace(redirect ?? '/');
   };
+  const form = useAuthForm(authFlight.mode, onSignIn);
+  const flying = authFlight.startedAt !== null;
 
   return (
-    <div className="auth wrap" style={{ '--sweep': `${SWEEP_MS}ms` } as CSSProperties}
-      ref={node => { cardsRef.current = node; glowRef.current = node; }}>
+    <div className={`auth mode-${authFlight.mode}${authSceneReady ? ' scene-ready' : ''}`}
+      style={{ '--auth-fade': `${AUTH_FADE_MS}ms` } as CSSProperties}>
       <Link className="logo" to="/" aria-label="Cellestial — на главную">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="4.2" fill="#b9a4ff" />
@@ -35,10 +35,14 @@ export default function Auth() {
         cellestial
       </Link>
 
-      <AuthCard mode={mode} onModeChange={setMode} onSignIn={onSignIn} glass={glassOn} reducedMotion={reducedMotion} />
-
-      {/* CSS-диск планеты: фон, пока сцена грузится (и если не загрузится), и источник её геометрии */}
-      <div className="limb" ref={limbRef} aria-hidden="true" />
+      <div className="auth-fallback-planet" aria-hidden="true" />
+      <AuthCard mode={authFlight.mode} form={form} flying={flying} reducedMotion={reducedMotion} />
+      <button className="auth-destination" type="button" ref={authSwitchRef} hidden={flying} disabled={flying || form.busy}
+        aria-label={authFlight.mode === 'login' ? 'Перейти к регистрации' : 'Перейти ко входу'}
+        onClick={() => { if (!form.busy && !flying) requestAuthMode(authFlight.mode === 'login' ? 'signup' : 'login'); }}>
+        <span className="auth-destination-caption">{authFlight.mode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?'}</span>
+      </button>
     </div>
   );
 }
+import type { CSSProperties } from 'react';

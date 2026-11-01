@@ -45,7 +45,7 @@ export function useSceneLayout({ pageRef, glowRef, limbRef, cardsRef }: LayoutRe
       const glowRect = limb && glowEl ? glowEl.getBoundingClientRect() : null;
       const next: SceneLayout = {
         width: round(page.width),
-        height: Math.round(glass ? Math.max(BASE_HEIGHT, cardsBottom) : BASE_HEIGHT),
+        height: screen === 'auth' ? Math.round(page.height) : Math.round(glass ? Math.max(BASE_HEIGHT, cardsBottom) : BASE_HEIGHT),
         fade: [BASE_HEIGHT * 0.6, BASE_HEIGHT],
         planet: limb ? { cx: round(limb.left - page.left + R), cy: round(limb.top - page.top + R), R: round(R) } : null,
         glow: limb && glowRect
