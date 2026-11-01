@@ -65,7 +65,7 @@
 - Produces: `idleFlight(mode: AuthMode): AuthFlight`; `beginFlight(state: AuthFlight, target: AuthMode, now: number, animate: boolean): AuthFlight`; `completeFlight(state: AuthFlight, startedAt: number): AuthFlight`.
 - Produces: `sampleFlight(state: AuthFlight, now: number): { progress: number; done: boolean }`; `samplePose(progress: number): { eye: Point3; lookAt: Point3 }`. `progress` — абсолютная координата пути: 0 у входа, 1 у регистрации; `done` истинно только для завершившегося активного перелёта.
 
-- [ ] **Step 1: Написать содержательные тесты перехода и пути.** В `flight.test.ts` использовать `bun:test`; отдельные `test` для указанных случаев:
+- [x] **Step 1: Написать содержательные тесты перехода и пути.** В `flight.test.ts` использовать `bun:test`; отдельные `test` для указанных случаев:
 
 Имена тестов: `starts once and ignores repeated requests`, `samples forward and reverse with the same easing`, `commits only the current trip`, `switches immediately without animation`, `finishes after a long frame gap`, `reproduces close-flight camera poses`. Константы отдельно проверить: `expect(AUTH_FLIGHT_MS).toBe(1800)` и `expect(AUTH_FADE_MS).toBe(180)`.
 
@@ -98,10 +98,10 @@ expect(sampleFlight(trip, 1450).progress).toBeCloseTo(0.15625);
 expect(sampleFlight(back, 5350).progress).toBeCloseTo(0.15625);
 ```
 
-- [ ] **Step 2: Проверить RED.** Выполнить `bun install --frozen-lockfile` для существующих зависимостей, затем `bun test src/auth/flight.test.ts`. Ожидание: FAIL из-за отсутствующего `flight.ts`/экспортов, а не окружения.
-- [ ] **Step 3: Реализовать интерфейсы.** `beginFlight` игнорирует запрос при активном перелёте или неизменном режиме; без анимации возвращает покой целевого режима. `completeFlight` принимает только актуальный `startedAt`. Для активного полёта зажать нормированное время в `[0,1]`, применить `t = 3p² − 2p³`, интерполировать от `mode` к `target`. Путь: интерполяция eye `[-13,.8,3] → [13,.8,3]` и lookAt `[-8,0,0] → [8,0,0]`; к eye добавить `0.2 sin(π progress)` по Z и `0.1 sin(π progress)` по Y. Покой не выдаёт событие завершения. Не вводить очередь, event bus или React-хук для этой математики.
-- [ ] **Step 4: Проверить GREEN.** `bun test src/auth/flight.test.ts` — все PASS; `bun run typecheck` — exit 0.
-- [ ] **Step 5: Commit.** `git add src/auth/flight.ts src/auth/flight.test.ts` и `git commit -m "feat: model reversible auth planet flight"`.
+- [x] **Step 2: Проверить RED.** Выполнить `bun install --frozen-lockfile` для существующих зависимостей, затем `bun test src/auth/flight.test.ts`. Ожидание: FAIL из-за отсутствующего `flight.ts`/экспортов, а не окружения.
+- [x] **Step 3: Реализовать интерфейсы.** `beginFlight` игнорирует запрос при активном перелёте или неизменном режиме; без анимации возвращает покой целевого режима. `completeFlight` принимает только актуальный `startedAt`. Для активного полёта зажать нормированное время в `[0,1]`, применить `t = 3p² − 2p³`, интерполировать от `mode` к `target`. Путь: интерполяция eye `[-13,.8,3] → [13,.8,3]` и lookAt `[-8,0,0] → [8,0,0]`; к eye добавить `0.2 sin(π progress)` по Z и `0.1 sin(π progress)` по Y. Покой не выдаёт событие завершения. Не вводить очередь, event bus или React-хук для этой математики.
+- [x] **Step 4: Проверить GREEN.** `bun test src/auth/flight.test.ts` — все PASS; `bun run typecheck` — exit 0.
+- [x] **Step 5: Commit.** `git add src/auth/flight.ts src/auth/flight.test.ts` и `git commit -m "feat: model reversible auth planet flight"`.
 
 ### Task 2: Рабочая композиция и переключение форм через полёт
 
