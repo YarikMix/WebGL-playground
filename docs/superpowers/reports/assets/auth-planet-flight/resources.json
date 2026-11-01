@@ -1,0 +1,12 @@
+{
+  "before": {
+    "geometries": 10,
+    "textures": 1,
+    "canvases": 1
+  },
+  "after": {
+    "geometries": 10,
+    "textures": 1,
+    "canvases": 1
+  }
+}

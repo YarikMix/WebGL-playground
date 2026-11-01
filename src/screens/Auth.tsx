@@ -7,8 +7,6 @@ import type { Session } from '../session';
 
 const loginApi = getRouteApi('/login');
 
-/* Оба рефа сцены (glowRef и cardsRef) указывают на один и тот же контейнер: он же источник свечения
-   за карточкой, он же обёртка, в которой сцена ищет `.card`, чтобы отдать карточке стекло */
 export default function Auth() {
   const { authFlight, authSceneReady, authSwitchRef, requestAuthMode, signIn, reducedMotion } = useShell();
   const router = useRouter();
@@ -27,7 +25,7 @@ export default function Auth() {
 
   return (
     <div className={`auth mode-${authFlight.mode}${authSceneReady ? ' scene-ready' : ''}`}
-      style={{ '--auth-fade': `${AUTH_FADE_MS}ms` } as React.CSSProperties}>
+      style={{ '--auth-fade': `${AUTH_FADE_MS}ms` } as CSSProperties}>
       <Link className="logo" to="/" aria-label="Cellestial — на главную">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="4.2" fill="#b9a4ff" />
@@ -47,3 +45,4 @@ export default function Auth() {
     </div>
   );
 }
+import type { CSSProperties } from 'react';

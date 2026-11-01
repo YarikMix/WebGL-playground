@@ -1,0 +1,40 @@
+{
+  "hardware": {
+    "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "renderer": "ANGLE (Microsoft Corporation, D3D12 (NVIDIA GeForce RTX 4070 Ti), OpenGL 4.6)",
+    "width": 1440,
+    "height": 900,
+    "dpr": 1
+  },
+  "idle": {
+    "frames": 300,
+    "rate": 29.98124918528542,
+    "gapMedian": 33.399999998509884,
+    "gapP95": 34,
+    "gapMax": 34.399999998509884,
+    "longTasks": []
+  },
+  "flights": {
+    "frames": 1220,
+    "rate": 56.62419464972772,
+    "gapMedian": 16.699999999254942,
+    "gapP95": 33.100000001490116,
+    "gapMax": 34.30000000074506,
+    "longTasks": []
+  },
+  "finalIdle": {
+    "frames": 60,
+    "rate": 29.973582605184244,
+    "gapMedian": 33.30000000074506,
+    "gapP95": 34.099999997764826,
+    "gapMax": 34.30000000074506
+  },
+  "before": {
+    "buffers": 37,
+    "textures": 5
+  },
+  "after": {
+    "buffers": 37,
+    "textures": 5
+  }
+}

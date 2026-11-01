@@ -14,15 +14,17 @@ import type { AuthMode, Cell, Notebook, SceneScreen } from './types';
 /* Сцена — отдельный чанк: three.js, R3F и drei весят ~330 КБ gzip и для первого экрана не нужны.
    Загрузка стартует сразу, параллельно с первым рендером, а не когда React дойдёт до <Sky>. */
 const skyChunk = import('./sky/Sky');
+// lazy передаст отказ в SceneBoundary, когда измерится DOM; ранний preload не должен быть unhandled.
+void skyChunk.catch(() => {});
 const Sky = lazy(() => skyChunk);
 
 const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* Сцена — украшение: если чанк не загрузился или WebGL недоступен, страница остаётся на CSS-фоне */
-class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error: unknown) { console.error('Sky: сцена не запустилась, остаётся CSS-фон.', error); }
+  componentDidCatch(error: unknown) { this.props.onFailure(); console.error('Sky: сцена не запустилась, остаётся CSS-фон.', error); }
   render() { return this.state.failed ? null : this.props.children; }
 }
 
@@ -38,14 +40,14 @@ export default function App() {
   const routeId = useRouterState({ select: s => s.matches.at(-1)?.routeId });
   const screen: SceneScreen = routeId === '/login' ? 'auth' : routeId === '/notebook/$id' ? 'notebook' : 'list';
 
-  /* Режим формы живёт здесь, а не в экране: им управляет не только карточка, но и свет сцены. */
+  /* Общие часы для DOM-формы и камеры; mode фиксируется по прибытии. */
   const [authFlight, setAuthFlight] = useState(() => idleFlight('login'));
   const [authSceneReady, setAuthSceneReady] = useState(false);
   const authSwitchRef = useRef<HTMLButtonElement>(null);
 
   /* Единственное место, где читается медиазапрос: прокидывается пропом туда, где непрерывных
-     кадров может не быть (Sky/Planet/Backdrop) и куда синхронизирован кросс-фейд половин
-     карточки (AuthCard) — вместо повторного чтения matchMedia в каждом месте. Читается один раз
+     кадров может не быть (Sky/Planet/Backdrop), и в AuthCard — вместо повторного чтения
+     matchMedia в каждом месте. Читается один раз
      за жизнь страницы: значение уходит в контекст, и новый объект на каждом рендере зря
      перерисовывал бы все экраны. */
   const [reducedMotion] = useState(prefersReducedMotion);
@@ -102,6 +104,7 @@ export default function App() {
                   компилируется, под прозрачной карточкой не было бы ничего. */
   const [skyReady, setSkyReady] = useState(false);
   const [glassReady, setGlassReady] = useState(false);
+  const [sceneFailed, setSceneFailed] = useState(false);
 
   const pageRef = useRef<HTMLDivElement>(null), glowRef = useRef<HTMLElement>(null);
   const limbRef = useRef<HTMLDivElement>(null), cardsRef = useRef<HTMLDivElement>(null);
@@ -111,6 +114,13 @@ export default function App() {
 
   const onSkyReady = useCallback(() => setSkyReady(true), []);
   const onGlassReady = useCallback(() => setGlassReady(true), []);
+  const onUnavailable = useCallback(() => {
+    setSceneFailed(true);
+    setSkyReady(false);
+    setAuthSceneReady(false);
+    setGlassReady(false);
+    setAuthFlight(prev => prev.startedAt === null ? prev : completeFlight(prev, prev.startedAt));
+  }, []);
 
   const glassOn = wantGlass && glassReady;
   useEffect(() => { if (!isAuth) setAuthSceneReady(false); }, [isAuth]);
@@ -131,11 +141,11 @@ export default function App() {
       <div className={`page${skyReady ? ' webgl' : ''} cards-${glassOn ? 'liquid' : 'flat'}${isAuth ? ' auth-page' : ''}`} ref={pageRef}>
         <Outlet />
 
-        <SceneBoundary>
+        <SceneBoundary onFailure={onUnavailable}>
           <Suspense fallback={null}>
-            {layout && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={0} reducedMotion={reducedMotion} tickMs={tickMs}
+            {layout && !sceneFailed && <Sky layout={layout} motion={motion} glass={wantGlass} sun={SUN_ORBIT} spin={0} reducedMotion={reducedMotion} tickMs={tickMs}
               screen={screen} authFlight={authFlight} authSwitchRef={authSwitchRef} onAuthArrive={onAuthArrive} onAuthReady={onAuthReady}
-              onReady={onSkyReady} onGlassReady={onGlassReady} />}
+              onReady={onSkyReady} onGlassReady={onGlassReady} onUnavailable={onUnavailable} />}
           </Suspense>
         </SceneBoundary>
 

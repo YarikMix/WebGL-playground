@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
 import AuthScene from './AuthScene';
@@ -62,6 +62,7 @@ interface SkyProps {
   authSwitchRef: RefObject<HTMLButtonElement | null>;
   onAuthArrive: (startedAt: number) => void;
   onAuthReady: () => void;
+  onUnavailable: () => void;
   layout: SceneLayout;
   motion: boolean;
   glass: boolean;
@@ -75,8 +76,22 @@ interface SkyProps {
   onGlassReady: () => void;
 }
 
-export default function Sky({ screen, authFlight, authSwitchRef, onAuthArrive, onAuthReady, layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
+export default function Sky({ screen, authFlight, authSwitchRef, onAuthArrive, onAuthReady, onUnavailable, layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
+  const [supported] = useState(() => {
+    try {
+      const context = document.createElement('canvas').getContext('webgl2');
+      context?.getExtension('WEBGL_lose_context')?.loseContext();
+      return !!context;
+    } catch { return false; }
+  });
+  useEffect(() => { if (!supported) onUnavailable(); }, [supported, onUnavailable]);
+  const canvas = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const element = canvas.current;
+    element?.addEventListener('webglcontextlost', onUnavailable);
+    return () => element?.removeEventListener('webglcontextlost', onUnavailable);
+  }, [onUnavailable]);
 
   /* Последняя виденная планета. На экране блокнота Planet и Backdrop не размонтируются, а только
      прячутся (visible={false}) с этой геометрией: r3f при размонтировании вызывает dispose()
@@ -89,14 +104,17 @@ export default function Sky({ screen, authFlight, authSwitchRef, onAuthArrive, o
   const shown = lastPlanet.current;
   const hidden = screen === 'auth' || !(planet && glow);
 
+  if (!supported) return null;
+
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
-      <Canvas flat frameloop="demand" dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'low-power' }}
+      <Canvas ref={canvas} flat frameloop="demand" dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'low-power' }}
         style={{ pointerEvents: 'none' }}>
         <color attach="background" args={['#05030f']} />
         {screen === 'auth' ? <AuthScene flight={authFlight} motion={motion} switchRef={authSwitchRef} onArrive={onAuthArrive} onReady={onAuthReady} /> : <PixelCamera />}
         <Ticker enabled={motion} tickMs={tickMs} />
         <Redraw signal={layout} />
+        <Redraw signal={authFlight} />
         {/* Без этого сигнала смена sun/spin не заказывала ни одного кадра при frameloop="demand":
             свет менялся в uniform-е, но канвас никогда не перерисовывался (CRITICAL финального ревью) */}
         <Redraw signal={spin} />

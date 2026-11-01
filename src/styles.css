@@ -166,16 +166,17 @@ main { position: relative; padding-bottom: 24px; }
 .auth-form { display: flex; flex-direction: column; gap: 10px; }
 .auth-form h1 { margin: 0 0 12px; font: 500 24px/1.2 var(--display); letter-spacing: -.035em; }
 .auth-form .btn-primary { justify-content: center; width: 100%; font-size: 13px; }
-.auth-destination { position: absolute; left: 78%; top: 50%; transform: translate(-50%, -50%); width: 90px; height: 90px; border: 0; padding: 0; border-radius: 50%; color: var(--ice); cursor: pointer; background: radial-gradient(circle at 35% 30%, #a39cdb, #3e376b 55%, #120e2b); touch-action: manipulation; }
+.auth-destination { position: absolute; left: calc(100% - 36px); top: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; border: 0; padding: 0; border-radius: 50%; color: var(--ice); cursor: pointer; background: radial-gradient(circle at 35% 30%, #a39cdb, #3e376b 55%, #120e2b); touch-action: manipulation; }
 .auth-destination::before { content: ''; position: absolute; inset: -9px; border: 1px solid transparent; border-radius: 50%; transition: border-color .2s, box-shadow .2s; }
 .auth-destination:hover::before, .auth-destination:focus-visible::before { border-color: #c4a8ff99; box-shadow: 0 0 40px #9d6fff55; }
 .auth-destination:focus-visible { outline: 2px solid #c6b8ff; outline-offset: 5px; }
 .auth-destination:disabled { cursor: default; }
 .auth-destination-caption { position: absolute; top: calc(100% + 18px); left: 50%; transform: translateX(-50%); font-size: 13px; white-space: nowrap; }
-.mode-signup .auth-destination { left: 22%; }
+.mode-signup .auth-destination { left: 36px; }
 .auth-fallback-planet { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(70vw, 600px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #8b74ac, #453064 45%, #10091e 75%); box-shadow: 0 0 60px #a88df044; }
 .scene-ready .auth-fallback-planet { visibility: hidden; }
 .scene-ready .auth-destination { background: transparent; }
+.auth:not(.scene-ready) .auth-destination-caption { width: 64px; white-space: normal; font-size: 10px; }
 .field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: var(--mist); }
 .field-input { position: relative; display: flex; align-items: center; }
 .field input { width: 100%; height: 44px; padding: 0 44px 0 14px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); color: var(--ice); font-size: 15px; transition: border-color .15s, box-shadow .15s; }
@@ -250,9 +251,9 @@ html:has(.nb-main) {
 }
 
 @media (max-width: 700px) {
-  .auth-card { width: 232px; padding: 20px; }
+  .auth-card { width: min(232px, 62%); padding: 20px; }
   .auth-form h1 { font-size: 20px; }
-  .auth-destination-caption { font-size: 10px; white-space: normal; width: 70px; }
+  .auth-destination-caption { font-size: 10px; white-space: normal; width: 64px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .auth-card, .auth-destination::before { transition: none; }

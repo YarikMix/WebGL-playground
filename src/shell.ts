@@ -17,7 +17,7 @@ export interface Shell {
   glassOn: boolean;
   reducedMotion: boolean;
   session: Session | null;
-  /** режим формы входа живёт в корне: им управляет и карточка, и свет сцены */
+  /** состояние перелёта общее для формы и камеры */
   authFlight: AuthFlight;
   authSceneReady: boolean;
   authSwitchRef: RefObject<HTMLButtonElement | null>;
