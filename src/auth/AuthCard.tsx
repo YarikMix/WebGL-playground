@@ -1,74 +1,44 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthMode } from '../types';
-import type { Session } from '../session';
-import { SWEEP_MS } from '../scene-config';
-import Moon from './Moon';
+import { AUTH_FADE_MS } from './flight';
 import { useAuthForm } from './useAuthForm';
 import type { Field } from './useAuthForm';
 
 interface AuthCardProps {
-  /** режим живёт в App: им управляет не только карточка, но и свет сцены */
   mode: AuthMode;
-  onModeChange: (mode: AuthMode) => void;
-  onSignIn: (session: Session) => void;
-  /** стекло рисует сцена — карточка становится прозрачной (как у карточек блокнотов) */
-  glass: boolean;
-  /** свет переключается мгновенно — кросс-фейд половин тоже мгновенный, без класса .crossfading */
+  form: ReturnType<typeof useAuthForm>;
+  flying: boolean;
   reducedMotion: boolean;
 }
 
-/* Карточка входа/регистрации: две половины (форма и приглашение) стоят в DOM в постоянном
-   порядке, а какая из них слева, решает CSS `order` по классу режима на карточке —
-   переключение не переставляет узлы и не сбрасывает фокус. Класс `card` обязателен:
-   по нему useSceneLayout находит карточку и отдаёт её в сцену стеклом. Класс `lq` включает
-   правила `.cards-liquid .card.lq` (см. styles.css) — без него DOM-карточка держала бы
-   собственную заливку поверх стеклянной плиты, которую сцена всё равно рисует под ней. */
-export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedMotion }: AuthCardProps) {
+export default function AuthCard({ mode, form, flying, reducedMotion }: AuthCardProps) {
   // показ пароля — своё состояние карточки, при смене режима гасится, чтобы пароль
   // не оставался открытым на другой форме
   const [shown, setShown] = useState(false);
   const [toast, setToast] = useState('');
 
-  const { values, errors, busy, setValue, blurField, reset, submit } = useAuthForm(mode, onSignIn);
+  const { values, errors, busy, setValue, blurField, reset, submit } = form;
 
   const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLInputElement>(null);
   const fieldRef = (field: Field) => (field === 'login' ? loginRef : field === 'password' ? passwordRef : confirmRef);
 
-  // при смене режима (и при первом рендере — тогда это просто открытие формы) — сброс ошибок
-  /* mode меняется сразу — от него едет луна. Содержимое форм переключает displayMode, который
-     отстаёт на половину анимации: подмена случается, когда луна уже наехала на место действия,
-     и наружу выходит уже новая форма. Раньше содержимое менялось в первом же кадре, и переход
-     читался как «всё переименовалось и разъехалось», а не как «луна съела и выпустила». */
-  const [displayMode, setDisplayMode] = useState(mode);
-
-  // и фокус на первое поле формы
+  const cardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     reset();
     setShown(false);
-    loginRef.current?.focus();
-    // reset/submit меняются на каждый рендер (хук без useCallback) — сюда их включать не нужно,
-    // эффект должен срабатывать только на смену режима
-  }, [displayMode]);
-
-  /* Кросс-фейд половин (§6.1): порядок половин переставляется через CSS `order` мгновенно —
-     свойство order не анимируется, — поэтому вход/выход половин гасит отдельный класс.
-     .crossfading держится первую половину SWEEP_MS (та же константа, что двигает свет
-     в Planet.tsx/Backdrop.tsx — общие часы, см. scene-config.ts): opacity успевает погаснуть
-     за это время и вернуться назад за вторую половину, класс уже снят. При первом рендере
-     эффект не должен срабатывать — гасить нечего, это открытие формы, а не переключение. */
-  const [crossfading, setCrossfading] = useState(false);
-  const isFirstMode = useRef(true);
+  }, [mode]);
   useEffect(() => {
-    if (isFirstMode.current) { isFirstMode.current = false; return; }
-    if (reducedMotion) return;
-    setCrossfading(true);
-    const swap = setTimeout(() => setDisplayMode(mode), SWEEP_MS / 2);
-    const done = setTimeout(() => setCrossfading(false), SWEEP_MS * 0.6);   // проявление успевает закончиться к приходу луны, а не после него
-    return () => { clearTimeout(swap); clearTimeout(done); };
-  }, [mode, reducedMotion]);
+    if (flying) {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && cardRef.current?.contains(active)) active.blur();
+      return;
+    }
+    const timer = setTimeout(() => loginRef.current?.focus(), reducedMotion ? 0 : AUTH_FADE_MS);
+    return () => clearTimeout(timer);
+  }, [flying, mode, reducedMotion]);
 
   useEffect(() => {
     if (!toast) return;
@@ -76,20 +46,17 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const switchMode = () => {
-    onModeChange(mode === 'login' ? 'signup' : 'login');
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (flying || busy) return;
     const firstBad = await submit();
     if (firstBad) fieldRef(firstBad).current?.focus();
   };
 
   return (
-    <div className={`card auth-card mode-${mode} show-${displayMode}${glass ? ' lq' : ''}${crossfading ? ' crossfading' : ''}`}>
+    <div ref={cardRef} className={`auth-card${flying ? ' flying' : ''}`} inert={flying}>
       <form className="auth-form" noValidate onSubmit={e => { void handleSubmit(e); }}>
-        <h1>{displayMode === 'login' ? 'Вход' : 'Создание аккаунта'}</h1>
+        <h1>{mode === 'login' ? 'Вход' : 'Регистрация'}</h1>
         <label className="field">
           <span>Логин</span>
           {/* autocapitalize/spellcheck: иначе телефон поднимет первую букву, и логин не пройдёт правило */}
@@ -108,7 +75,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
           <span>Пароль</span>
           <span className="field-input">
             <input ref={passwordRef} type={shown ? 'text' : 'password'} name="password" value={values.password}
-              autoComplete={displayMode === 'login' ? 'current-password' : 'new-password'}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               aria-invalid={errors.password ? true : undefined}
               aria-describedby={errors.password ? 'password-error' : undefined}
               onChange={e => setValue('password', e.target.value)} onBlur={() => blurField('password')} />
@@ -125,7 +92,7 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
           </span>
           <span id="password-error" className="field-error" role="alert">{errors.password}</span>
         </label>
-        {displayMode === 'signup' && (
+        {mode === 'signup' && (
           <label className="field">
             <span>Повторите пароль</span>
             {/* Своей кнопки показа нет: переключатель у поля «Пароль» раскрывает оба поля,
@@ -139,23 +106,14 @@ export default function AuthCard({ mode, onModeChange, onSignIn, glass, reducedM
           </label>
         )}
         <button className="btn btn-primary" type="submit" disabled={busy}>
-          {displayMode === 'login' ? 'Войти' : 'Создать аккаунт'}
+          {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
         </button>
-        {displayMode === 'login' && (
+        {mode === 'login' && (
           <button type="button" className="auth-aux" onClick={() => setToast('В прототипе восстановление не подключено')}>
             Забыли пароль?
           </button>
         )}
       </form>
-
-      <Moon>
-        <div className="auth-moon-face">
-          <p>{displayMode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?'}</p>
-          <button className="btn btn-ghost" type="button" onClick={switchMode}>
-            {displayMode === 'login' ? 'Создать аккаунт' : 'Войти'}
-          </button>
-        </div>
-      </Moon>
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

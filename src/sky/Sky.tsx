@@ -1,13 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
+import AuthScene from './AuthScene';
+import type { AuthFlight } from '../auth/flight';
 import FirstFrame from './FirstFrame';
 import Backdrop from './Backdrop';
 import Planet from './Planet';
 import Stars from './Stars';
 import Meteor from './Meteor';
 import GlassCards from './GlassCards';
-import type { PlanetGeometry, SceneLayout, SunDirection } from '../types';
+import type { PlanetGeometry, SceneLayout, SunDirection, SceneScreen } from '../types';
 
 /* Сцена в координатах страницы: X вправо, Y вверх, 1 единица = 1 CSS-пиксель, левый верхний угол
    канваса — (0, 0). Камера ортографическая, поэтому меши встают ровно на свои DOM-места.
@@ -55,6 +57,11 @@ function Redraw({ signal }: { signal: unknown }) {
 }
 
 interface SkyProps {
+  screen: SceneScreen;
+  authFlight: AuthFlight;
+  authSwitchRef: RefObject<HTMLButtonElement | null>;
+  onAuthArrive: (startedAt: number) => void;
+  onAuthReady: () => void;
   layout: SceneLayout;
   motion: boolean;
   glass: boolean;
@@ -68,7 +75,7 @@ interface SkyProps {
   onGlassReady: () => void;
 }
 
-export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
+export default function Sky({ screen, authFlight, authSwitchRef, onAuthArrive, onAuthReady, layout, motion, glass, sun, spin, reducedMotion, tickMs, onReady, onGlassReady }: SkyProps) {
   const { width, height, planet, glow, fade, cards } = layout;
 
   /* Последняя виденная планета. На экране блокнота Planet и Backdrop не размонтируются, а только
@@ -80,14 +87,14 @@ export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, t
   const lastPlanet = useRef<{ planet: PlanetGeometry; glow: NonNullable<SceneLayout['glow']> } | null>(null);
   if (planet && glow) lastPlanet.current = { planet, glow };
   const shown = lastPlanet.current;
-  const hidden = !(planet && glow);
+  const hidden = screen === 'auth' || !(planet && glow);
 
   return (
     <div className="stars" style={{ height }} aria-hidden="true">
       <Canvas flat frameloop="demand" dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'low-power' }}
         style={{ pointerEvents: 'none' }}>
         <color attach="background" args={['#05030f']} />
-        <PixelCamera />
+        {screen === 'auth' ? <AuthScene flight={authFlight} motion={motion} switchRef={authSwitchRef} onArrive={onAuthArrive} onReady={onAuthReady} /> : <PixelCamera />}
         <Ticker enabled={motion} tickMs={tickMs} />
         <Redraw signal={layout} />
         {/* Без этого сигнала смена sun/spin не заказывала ни одного кадра при frameloop="demand":
@@ -95,6 +102,7 @@ export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, t
         <Redraw signal={spin} />
         <FirstFrame onReady={onReady} />
 
+        <group visible={screen !== 'auth'}>
         {/* Без планеты (экран блокнота) не видно ни диска, ни ореола, ни свечения за заголовком —
             остаются цвет космоса и звёзды. Planet и Backdrop при этом спрятаны, а не размонтированы
             (см. lastPlanet выше). Пока планеты не было ни разу (сразу открыли блокнот по ссылке),
@@ -109,6 +117,7 @@ export default function Sky({ layout, motion, glass, sun, spin, reducedMotion, t
             одну спрятанную «тёплую» плиту, чтобы при возврате на список стекло не проходило заново
             через первую компиляцию (см. GlassCards.tsx) */}
         {glass && <GlassCards cards={cards} motion={motion} onReady={onGlassReady} />}
+        </group>
       </Canvas>
     </div>
   );
